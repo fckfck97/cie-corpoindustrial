@@ -1,0 +1,18 @@
+{% load i18n %}
+
+{% block subject %}
+{% blocktrans %}Activación de Cuenta en CIE-Corpoindustrial{% endblocktrans %}
+{% endblock subject %}
+
+{% block text_body %}
+{% blocktrans %}Estás recibiendo este correo electrónico porque necesitas completar el proceso de activación en CIE-Corpoindustrial.{% endblocktrans %}
+{% with domain="cie.corpoindustrial.co" %}
+{% trans "Por favor, ve a la siguiente página para activar tu cuenta:" %}
+{{ protocol }}://{{ domain }}/{{ url|safe }}
+{% endwith %}
+{% trans "¡Gracias por usar nuestro sitio!" %}
+
+{% blocktrans %}El equipo de CIE-Corpoindustrial{% endblocktrans %}
+
+{% blocktrans %}CIE-Corpoindustrial. Cucuta-Norte de Santander{% endblocktrans %}
+{% endblock text_body %}
