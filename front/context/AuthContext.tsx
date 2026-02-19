@@ -14,7 +14,6 @@ import type {
   OtpRequestResponse,
   OtpVerifyPayload,
 } from '@/types/auth';
-import { config } from '@/lib/config';
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -55,9 +54,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setError(null);
         const response = await requestOtp(payload);
 
-        // In dev mode, show debug code if available
+        // Log OTP debug code only outside production.
         const debugCode = response.otp_debug_code || response.debugCode;
-        if (config.app.isDev && debugCode) {
+        if (process.env.NODE_ENV !== 'production' && debugCode) {
           console.log('[v0] OTP Debug Code:', debugCode);
         }
 
@@ -72,11 +71,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const handleVerifyOtp = useCallback(
-    async (payload: OtpVerifyPayload): Promise<void> => {
+    async (payload: OtpVerifyPayload): Promise<User> => {
       try {
         setError(null);
         const { user: newUser } = await verifyOtpLib(payload);
         setUser(newUser);
+        return newUser;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to verify OTP';
         setError(message);

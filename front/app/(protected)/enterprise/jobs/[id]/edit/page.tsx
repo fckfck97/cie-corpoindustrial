@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,23 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { RichTextEditor } from '@/components/RichTextEditor';
+import { getImageUrl } from '@/lib/utils';
+
+type Job = {
+  id: string;
+  title: string;
+  description?: string;
+  image?: string;
+  priority?: string;
+  status?: string;
+  created?: string;
+  start_date?: string;
+  end_date?: string;
+};
+
+type JobDetailResponse = {
+  job?: Job;
+};
 
 const stripHtml = (html: string) =>
   String(html || '')
@@ -21,24 +38,75 @@ const stripHtml = (html: string) =>
 
 const isValidDateStr = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
-// Convierte YYYY-MM-DD a ISO en UTC (00:00:00Z) evitando desfase por timezone
+// Convierte YYYY-MM-DD a ISO en UTC (00:00:00Z)
 const dateToUtcIso = (yyyy_mm_dd: string) => {
   const [y, m, d] = yyyy_mm_dd.split('-').map(Number);
   return new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0)).toISOString();
 };
 
-export default function CreateJobPage() {
+// Convierte ISO string a formato YYYY-MM-DD
+const isoToDateStr = (iso?: string) => {
+  if (!iso) return '';
+  try {
+    const date = new Date(iso);
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch {
+    return '';
+  }
+};
+
+export default function EditJobPage() {
   const router = useRouter();
+  const params = useParams();
+  const jobId = params?.id as string;
+
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [currentImage, setCurrentImage] = useState<string | undefined>(undefined);
 
   const [form, setForm] = useState({
     title: '',
     description: '',
     priority: 'Media',
+    status: 'published',
     image: null as File | null,
-    start_date: '', // YYYY-MM-DD
-    end_date: '',   // YYYY-MM-DD
+    start_date: '',
+    end_date: '',
   });
+
+  const loadJob = useCallback(async () => {
+    if (!jobId) return;
+    setLoading(true);
+    try {
+      const data = await apiClient.get<JobDetailResponse>(`/job/${jobId}/`);
+      const job = data?.job;
+      
+      if (job) {
+        setForm({
+          title: job.title || '',
+          description: job.description || '',
+          priority: job.priority || 'Media',
+          status: job.status || 'published',
+          image: null,
+          start_date: isoToDateStr(job.start_date),
+          end_date: isoToDateStr(job.end_date),
+        });
+        setCurrentImage(job.image);
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'No se pudo cargar el empleo.');
+      router.push('/enterprise/jobs');
+    } finally {
+      setLoading(false);
+    }
+  }, [jobId, router]);
+
+  useEffect(() => {
+    loadJob();
+  }, [loadJob]);
 
   const plainDescription = useMemo(() => stripHtml(form.description), [form.description]);
 
@@ -53,21 +121,19 @@ export default function CreateJobPage() {
     return (
       !!form.title.trim() &&
       !!plainDescription &&
-      !!form.image &&
       !!form.start_date &&
       !!form.end_date &&
       !dateError
     );
-  }, [form.title, plainDescription, form.image, form.start_date, form.end_date, dateError]);
+  }, [form.title, plainDescription, form.start_date, form.end_date, dateError]);
 
-  const onCreate = async (e: React.FormEvent) => {
+  const onUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting) return;
+    if (submitting || !jobId) return;
 
     const title = form.title.trim();
     if (!title) return toast.error('El título es obligatorio.');
     if (!plainDescription) return toast.error('La descripción es obligatoria.');
-    if (!form.image) return toast.error('La imagen es obligatoria.');
     if (!form.start_date) return toast.error('La fecha de inicio es obligatoria.');
     if (!form.end_date) return toast.error('La fecha de cierre es obligatoria.');
     if (dateError) return toast.error(dateError);
@@ -75,25 +141,41 @@ export default function CreateJobPage() {
     setSubmitting(true);
     try {
       const body = new FormData();
+      body.append('id', jobId);
       body.append('title', title);
       body.append('description', form.description);
       body.append('priority', form.priority);
-      body.append('image', form.image);
-      body.append('status', 'published');
+      body.append('status', form.status);
 
-      // Guardar como ISO en UTC al inicio del día (00:00:00Z)
+      if (form.image) {
+        body.append('image', form.image);
+      }
+
       body.append('start_date', dateToUtcIso(form.start_date));
       body.append('end_date', dateToUtcIso(form.end_date));
 
-      await apiClient.post('/job/create/', body);
-      toast.success('Empleo creado correctamente.');
+      await apiClient.put(`/job/edit/${jobId}/`, body);
+      toast.success('Empleo actualizado correctamente.');
       router.push('/enterprise/jobs');
     } catch (error: any) {
-      toast.error(error?.message || 'No se pudo crear empleo.');
+      toast.error(error?.message || 'No se pudo actualizar el empleo.');
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex min-h-[400px] items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+            <p className="mt-4 text-sm text-muted-foreground">Cargando empleo...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -110,8 +192,8 @@ export default function CreateJobPage() {
           </Button>
 
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">Crear Nuevo Empleo</h1>
-            <p className="text-sm text-muted-foreground">Completa la información para publicar una vacante.</p>
+            <h1 className="text-2xl font-bold tracking-tight">Editar Empleo</h1>
+            <p className="text-sm text-muted-foreground">Actualiza la información de la vacante.</p>
           </div>
         </div>
 
@@ -122,7 +204,7 @@ export default function CreateJobPage() {
           </CardHeader>
 
           <CardContent className="space-y-6 pt-6">
-            <form onSubmit={onCreate} className="space-y-6">
+            <form onSubmit={onUpdate} className="space-y-6">
               {/* Sección: Básico */}
               <div className="grid gap-4">
                 <div className="flex items-center justify-between">
@@ -163,20 +245,44 @@ export default function CreateJobPage() {
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="image">
-                      Imagen de Portada <span className="text-red-500">*</span>
+                    <Label htmlFor="status">
+                      Estado <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      id="image"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setForm((p) => ({ ...p, image: e.target.files?.[0] || null }))}
-                      required
-                    />
-                    <p className="text-[10px] text-muted-foreground">
-                      Formatos: JPG, PNG, WEBP. Recomendado: 1200×600px.
-                    </p>
+                    <select
+                      id="status"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={form.status}
+                      onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
+                    >
+                      <option value="published">Activo</option>
+                      <option value="draft">Inactivo</option>
+                    </select>
                   </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="image">Imagen de Portada</Label>
+                  <Input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setForm((p) => ({ ...p, image: e.target.files?.[0] || null }))}
+                  />
+                  {currentImage && (
+                    <div className="mt-2">
+                      <p className="mb-2 text-xs text-muted-foreground">Imagen actual:</p>
+                      <div className="relative h-32 w-full overflow-hidden rounded-md border bg-muted">
+                        <img
+                          src={getImageUrl(currentImage)}
+                          alt="Portada actual"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    {form.image ? 'Se subirá una nueva imagen.' : 'Deja vacío para mantener la imagen actual.'}
+                  </p>
                 </div>
               </div>
 
@@ -258,10 +364,10 @@ export default function CreateJobPage() {
 
                 <Button type="submit" disabled={submitting || !canSubmit} className="min-w-[170px]">
                   {submitting ? (
-                    'Publicando...'
+                    'Actualizando...'
                   ) : (
                     <>
-                      <Save className="mr-2 h-4 w-4" /> Publicar Oferta
+                      <Save className="mr-2 h-4 w-4" /> Guardar Cambios
                     </>
                   )}
                 </Button>

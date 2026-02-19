@@ -31,6 +31,7 @@ from django.db import IntegrityError
 from apps.products.models import Product
 from apps.job.models import JobBoard
 from django.db.models import Case, When, Value, IntegerField, Q, Count
+import re
 from apps.products.serializers import EmployeeBenefitListSerializer
 from apps.job.serializers import EmployeeJobListSerializer
 from .utils.sendOTP import send_sms_in_background
@@ -48,9 +49,80 @@ from .utils.billing import (
     is_enterprise_blocked,
     user_access_blocked,
     employee_login_context_valid,
+    previous_year_month
 )
 
 User = get_user_model()
+
+
+def normalize_colombian_phone(raw_phone):
+    phone = re.sub(r"\D+", "", str(raw_phone or ""))
+    if phone.startswith("57") and len(phone) == 12:
+        phone = phone[2:]
+    return phone
+
+
+def validate_unique_phone(phone_raw, current_user_id=None):
+    normalized_phone = normalize_colombian_phone(phone_raw)
+    if not normalized_phone:
+        return normalized_phone
+
+    if not re.fullmatch(r"3\d{9}", normalized_phone):
+        raise ValueError("El teléfono debe ser colombiano: 10 dígitos e iniciar por 3.")
+
+    existing_users = UserAccount.objects.exclude(phone__isnull=True).exclude(phone="")
+    if current_user_id:
+        existing_users = existing_users.exclude(pk=current_user_id)
+
+    already_used = any(
+        normalize_colombian_phone(existing.phone) == normalized_phone
+        for existing in existing_users.only("id", "phone")
+    )
+    if already_used:
+        raise ValueError(
+            "El número de teléfono ingresado pertenece a un usuario ya registrado en el portal."
+        )
+    return normalized_phone
+
+
+def _enterprise_profile_is_complete(enterprise: UserAccount):
+    if not enterprise or enterprise.role != "enterprise":
+        return False
+
+    profile = getattr(enterprise, "userprofile", None)
+
+    def _normalized(value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    required_values = [
+        enterprise.email,
+        enterprise.first_name,
+        enterprise.last_name,
+        enterprise.enterprise,
+        enterprise.phone,
+        getattr(profile, "document_type_enterprise", None) if profile else None,
+        getattr(profile, "nuip_enterprise", None) if profile else None,
+        getattr(profile, "description", None) if profile else None,
+        getattr(profile, "niche", None) if profile else None,
+        getattr(profile, "address", None) if profile else None,
+    ]
+    return all(_normalized(value) not in [None, ""] for value in required_values)
+
+
+def _enterprise_is_visible_to_employees(enterprise: UserAccount):
+    if not enterprise or enterprise.role != "enterprise":
+        return False
+    if not enterprise.is_active or not enterprise.verified:
+        return False
+    if not _enterprise_profile_is_complete(enterprise):
+        return False
+    if is_enterprise_blocked(enterprise):
+        return False
+    return True
 
 class UserView(APIView):
     permission_classes = [IsAuthenticated]
@@ -74,6 +146,11 @@ class UserView(APIView):
                 serializer = EditUserEnterpriseSerializer(employee)
                 return Response({'employee': serializer.data})
             elif request.user.role == 'employees':
+                if str(employee.id) != str(request.user.id):
+                    return Response(
+                        {'error': 'Solo puedes consultar tu propio perfil.'},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
                 serializer = EditUserEmployeesSerializer(employee)
                 return Response({'employee': serializer.data})
             else:
@@ -81,13 +158,16 @@ class UserView(APIView):
         else:
             if request.user.role == 'enterprise':
                 enterprise = request.user.enterprise
-                employees = UserAccount.objects.filter(enterprise=enterprise, role='employees')
+                employees = UserAccount.objects.filter(
+                    enterprise=enterprise,
+                    role='employees',
+                ).order_by('-date_joined')
                 paginator = SmallSetPagination()
                 results = paginator.paginate_queryset(employees, request)
                 serializer = UserSerializer(results, many=True)
                 return paginator.get_paginated_response({'employees': serializer.data})
             elif request.user.role == 'Admin':
-                employees = UserAccount.objects.filter(role='enterprise')
+                employees = UserAccount.objects.filter(role='enterprise').order_by('-date_joined')
                 paginator = SmallSetPagination()
                 results = paginator.paginate_queryset(employees, request)
                 serializer = UserSerializer(results, many=True)
@@ -116,15 +196,22 @@ class UserView(APIView):
             actor = request.user
 
             if actor.role == "Admin":
-                if user.role != "enterprise":
+                is_self_edit = str(user.id) == str(actor.id)
+                if user.role != "enterprise" and not is_self_edit:
                     return Response(
-                        {"error": "Admin solo puede editar empresas."},
+                        {"error": "Admin solo puede editar empresas o su propio perfil."},
                         status=status.HTTP_403_FORBIDDEN,
                     )
             elif actor.role == "enterprise":
                 if user.role != "employees" or user.enterprise != actor.enterprise:
                     return Response(
                         {"error": "Solo puedes editar empleados de tu empresa."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+            elif actor.role == "employees":
+                if str(user.id) != str(actor.id):
+                    return Response(
+                        {"error": "Solo puedes editar tu propio perfil."},
                         status=status.HTTP_403_FORBIDDEN,
                     )
             else:
@@ -134,9 +221,13 @@ class UserView(APIView):
                 )
 
             # actualizar categoria por partes
-            if data.get('email') and data['email'] not in ['undefined', '']:
-                user.email = data['email']
-            if data.get('username') and data['username'] not in ['undefined', '']:
+            incoming_email = data.get("email")
+            if incoming_email not in [None, "", "undefined"]:
+                normalized_email = str(incoming_email).strip().lower()
+                user.email = normalized_email
+                # Mantener consistencia: username siempre igual al correo.
+                user.username = normalized_email
+            elif data.get('username') and data['username'] not in ['undefined', '']:
                 user.username = data['username']
             if data.get('first_name') and data['first_name'] not in ['undefined', '']:
                 data['first_name'] = data['first_name'].title()
@@ -144,7 +235,7 @@ class UserView(APIView):
             if data.get('last_name') and data['last_name'] not in ['undefined', '']:
                 data['last_name'] = data['last_name'].title()
                 user.last_name = data['last_name']
-            if data.get('enterprise') and data['enterprise'] not in ['undefined', '']:
+            if actor.role == "Admin" and data.get('enterprise') and data['enterprise'] not in ['undefined', '']:
                 old_enterprise_name = user.enterprise
                 new_enterprise_name = data['enterprise']
                 user.enterprise = new_enterprise_name
@@ -152,6 +243,11 @@ class UserView(APIView):
                 user.document_type = data['document_type']
             if data.get('nuip') and data['nuip'] not in ['undefined', '']:
                 user.nuip = data['nuip']
+            if data.get('phone') and data['phone'] not in ['undefined', '']:
+                try:
+                    user.phone = validate_unique_phone(data['phone'], current_user_id=user.id)
+                except ValueError as exc:
+                    return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
             if data.get('picture') and data['picture'] not in ['undefined', '']:
                 user.picture = data['picture']
@@ -202,7 +298,6 @@ class UserView(APIView):
             "nuip_enterprise",
             "description",
             "niche",
-            "phone",
             "address",
             "facebook",
             "instagram",
@@ -302,7 +397,7 @@ class EnterprisesProfile(APIView):
                 serializer = UserEnterpriseProfileSerializer(enterprise)
                 return Response({'enterprise': serializer.data})
             elif request.user.role == "Admin" :
-                serializer = UserEnterpriseProfileSerializer(enterprise)
+                serializer = UserProfileSerializer(enterprise)
                 return Response({'enterprise': serializer.data})
             else:
                 return Response({'error': 'enterprise does not belong to this user'}, status=status.HTTP_404_NOT_FOUND)
@@ -361,9 +456,13 @@ class EnterprisesProfile(APIView):
 
             enterprise, _ = UserProfile.objects.get_or_create(user=user)
 
-            if data.get('email') and data['email'] not in ['undefined', '']:
-                user.email = data['email'].strip().lower()
-            if data.get('username') and data['username'] not in ['undefined', '']:
+            incoming_email = data.get("email")
+            if incoming_email not in [None, "", "undefined"]:
+                normalized_email = str(incoming_email).strip().lower()
+                user.email = normalized_email
+                # Mantener consistencia: username siempre igual al correo.
+                user.username = normalized_email
+            elif data.get('username') and data['username'] not in ['undefined', '']:
                 user.username = data['username'].strip()
             if data.get('first_name') and data['first_name'] not in ['undefined', '']:
                 user.first_name = data['first_name'].strip().title()
@@ -385,7 +484,10 @@ class EnterprisesProfile(APIView):
             if data.get('niche') and data['niche'] not in ['undefined', '']:
                 enterprise.niche = data['niche']
             if data.get('phone') and data['phone'] not in ['undefined', '']:
-                enterprise.phone = data['phone']
+                try:
+                    user.phone = validate_unique_phone(data['phone'], current_user_id=user.id)
+                except ValueError as exc:
+                    return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
             if data.get('address') and data['address'] not in ['undefined', '']:
                 enterprise.address = data['address']
             if data.get('facebook') and data['facebook'] not in ['undefined', '']:
@@ -428,8 +530,19 @@ class EmployeeDashboardView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        base_enterprises = (
+            UserAccount.objects.filter(role="enterprise", is_active=True, verified=True)
+            .select_related("userprofile")
+            .order_by("enterprise", "username")
+        )
+        visible_enterprise_ids = [
+            enterprise.id
+            for enterprise in base_enterprises
+            if _enterprise_is_visible_to_employees(enterprise)
+        ]
+
         enterprises = (
-            UserAccount.objects.filter(role="enterprise", is_active=True)
+            UserAccount.objects.filter(id__in=visible_enterprise_ids)
             .select_related("userprofile")
             .annotate(
                 jobs_count=Count("job_board", filter=Q(job_board__status="published"), distinct=True),
@@ -448,12 +561,15 @@ class EmployeeDashboardView(APIView):
         )
 
         jobs_qs = (
-            JobBoard.objects.filter(status="published", user__role="enterprise", user__is_active=True)
+            JobBoard.objects.filter(
+                status="published",
+                user_id__in=visible_enterprise_ids,
+            )
             .select_related("user")
             .order_by("-created")[:3]
         )
         benefits_qs = (
-            Product.objects.filter(user__role="enterprise", user__is_active=True)
+            Product.objects.filter(user_id__in=visible_enterprise_ids)
             .filter(Q(finished=False) | Q(finished__isnull=True))
             .select_related("user")
             .order_by("-created")[:3]
@@ -478,12 +594,10 @@ class EmployeeDashboardView(APIView):
                 "total_enterprises": enterprises.count(),
                 "total_jobs": JobBoard.objects.filter(
                     status="published",
-                    user__role="enterprise",
-                    user__is_active=True,
+                    user_id__in=visible_enterprise_ids,
                 ).count(),
                 "total_benefits": Product.objects.filter(
-                    user__role="enterprise",
-                    user__is_active=True,
+                    user_id__in=visible_enterprise_ids,
                 ).filter(Q(finished=False) | Q(finished__isnull=True)).count(),
             },
         }
@@ -501,8 +615,19 @@ class EmployeeCompaniesListView(APIView):
             )
 
         search = (request.query_params.get("search") or "").strip()
+        base_enterprises = (
+            UserAccount.objects.filter(role="enterprise", is_active=True, verified=True)
+            .select_related("userprofile")
+            .order_by("enterprise", "username")
+        )
+        visible_enterprise_ids = [
+            enterprise.id
+            for enterprise in base_enterprises
+            if _enterprise_is_visible_to_employees(enterprise)
+        ]
+
         enterprises = (
-            UserAccount.objects.filter(role="enterprise", is_active=True)
+            UserAccount.objects.filter(id__in=visible_enterprise_ids)
             .select_related("userprofile")
             .annotate(
                 jobs_count=Count("job_board", filter=Q(job_board__status="published"), distinct=True),
@@ -547,7 +672,7 @@ class EmployeeEnterpriseDetailView(APIView):
             role="enterprise",
             is_active=True,
         ).select_related("userprofile").first()
-        if not enterprise:
+        if not enterprise or not _enterprise_is_visible_to_employees(enterprise):
             return Response(
                 {"detail": "Empresa no encontrada."},
                 status=status.HTTP_404_NOT_FOUND,
@@ -574,11 +699,22 @@ class EmployeeEnterpriseDetailView(APIView):
 
         niche_enterprise_ids = []
         if niche:
-            niche_enterprise_ids = list(
+            suggested_candidate_ids = list(
                 UserProfile.objects.filter(niche__iexact=niche)
                 .exclude(user=enterprise)
                 .values_list("user_id", flat=True)
             )
+            suggested_candidates = UserAccount.objects.filter(
+                id__in=suggested_candidate_ids,
+                role="enterprise",
+                is_active=True,
+                verified=True,
+            ).select_related("userprofile")
+            niche_enterprise_ids = [
+                candidate.id
+                for candidate in suggested_candidates
+                if _enterprise_is_visible_to_employees(candidate)
+            ]
 
         suggestions_benefits_qs = Product.objects.filter(
             user_id__in=niche_enterprise_ids,
@@ -666,7 +802,7 @@ class EmployeeEnterpriseDetailView(APIView):
                 "email": enterprise.email,
                 "description": getattr(profile, "description", None),
                 "niche": niche or None,
-                "phone": getattr(profile, "phone", None),
+                "phone": enterprise.phone,
                 "address": getattr(profile, "address", None),
                 "facebook": getattr(profile, "facebook", None),
                 "instagram": getattr(profile, "instagram", None),
@@ -783,6 +919,123 @@ class EnterpriseBillingGenerateView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class EnterpriseBillingActivationCronView(APIView):
+    """
+    Endpoint para n8n/cron para activar (crear) mensualidades de empresas.
+    Authorization:
+    - Admin autenticado por JWT, o
+    - Header X-CRON-TOKEN con settings.BILLING_NOTIFICATIONS_CRON_TOKEN
+    """
+
+    permission_classes = [AllowAny]
+
+    def _is_authorized(self, request):
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated and getattr(user, "role", None) == "Admin":
+            return True, "admin_jwt"
+
+        configured_token = getattr(settings, "BILLING_NOTIFICATIONS_CRON_TOKEN", "")
+        provided_token = (
+            request.headers.get("X-CRON-TOKEN")
+            or request.query_params.get("token")
+            or request.data.get("token")
+        )
+        if configured_token and provided_token and provided_token == configured_token:
+            return True, "cron_token"
+
+        return False, None
+
+    def _resolve_target_period(self, request):
+        today = timezone.localdate()
+        mode = (
+            request.query_params.get("mode")
+            or request.data.get("mode")
+            or "next"
+        ).strip().lower()
+
+        if mode not in {"next", "current", "month"}:
+            raise ValueError("Parametro mode invalido. Usa: next, current o month.")
+
+        if mode == "current":
+            return today.year, today.month, mode
+
+        if mode == "next":
+            if today.month == 12:
+                return today.year + 1, 1, mode
+            return today.year, today.month + 1, mode
+
+        year_raw = request.query_params.get("year") or request.data.get("year")
+        month_raw = request.query_params.get("month") or request.data.get("month")
+        if not year_raw or not month_raw:
+            raise ValueError("Para mode=month debes enviar year y month.")
+        try:
+            year = int(year_raw)
+            month = int(month_raw)
+        except (TypeError, ValueError):
+            raise ValueError("year/month deben ser numericos.")
+        if month < 1 or month > 12:
+            raise ValueError("month fuera de rango. Usa 1..12.")
+        if year < 2000 or year > 2100:
+            raise ValueError("year fuera de rango permitido.")
+        return year, month, mode
+
+    def _run(self, request):
+        is_authorized, auth_source = self._is_authorized(request)
+        if not is_authorized:
+            return Response(
+                {"detail": "No autorizado para activar mensualidades."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            year, month, mode = self._resolve_target_period(request)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        enterprise_id = (
+            request.query_params.get("enterprise_id")
+            or request.data.get("enterprise_id")
+            or ""
+        ).strip()
+        dry_run = parse_bool_value(
+            request.query_params.get("dry_run") or request.data.get("dry_run")
+        )
+
+        enterprises = UserAccount.objects.filter(role="enterprise")
+        if enterprise_id:
+            enterprises = enterprises.filter(pk=enterprise_id)
+
+        enterprise_ids = list(enterprises.values_list("id", flat=True))
+
+        if not dry_run:
+            for enterprise in enterprises:
+                ensure_payment_for_month(enterprise, year, month)
+
+        return Response(
+            {
+                "detail": (
+                    "Simulacion de activacion completada."
+                    if dry_run
+                    else "Mensualidades activadas correctamente."
+                ),
+                "mode": mode,
+                "year": year,
+                "month": month,
+                "dry_run": dry_run,
+                "processed": len(enterprise_ids),
+                "enterprise_ids": [str(eid) for eid in enterprise_ids],
+                "auth_source": auth_source,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def get(self, request, *args, **kwargs):
+        return self._run(request)
+
+    def post(self, request, *args, **kwargs):
+        return self._run(request)
 
 
 class EnterpriseMonthlyPaymentMarkPaidView(APIView):
@@ -1016,7 +1269,7 @@ class EnterprisePaymentDelinquencyNotificationsView(APIView):
 
             enterprise = payment.enterprise
             enterprise_name = enterprise.enterprise or enterprise.username or enterprise.email
-            phone_raw = getattr(getattr(enterprise, "userprofile", None), "phone", None)
+            phone_raw = enterprise.phone
             phone = normalize_sms_phone(phone_raw) if phone_raw else None
             email = (enterprise.email or "").strip().lower() or None
             affected_users = count_enterprise_employees(enterprise)
@@ -1173,7 +1426,6 @@ class EnterpriseOwnPaymentsView(APIView):
 
         return Response(
             {
-                "enterprise": UserSerializer(enterprise).data,
                 "summary": summary,
                 "payments": payments,
             },

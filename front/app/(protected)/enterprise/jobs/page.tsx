@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, MoreVertical, Pencil, Trash, Eye, Briefcase, Power, PowerOff, Search, Filter, X } from 'lucide-react';
+import { Plus, MoreVertical, Pencil, Trash, Eye, Briefcase, Power, PowerOff, Search, Filter, X, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { getImageUrl } from '@/lib/utils';
 import { getJobPriorityLabel, getJobStatusLabel } from '@/lib/model-choice-labels';
@@ -46,7 +46,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { RichTextEditor } from '@/components/RichTextEditor';
 
 type Job = {
   id: string;
@@ -74,20 +73,6 @@ export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  
-  // Edit State
-  const [editingJob, setEditingJob] = useState<Job | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const [editSubmitting, setEditSubmitting] = useState(false);
-  const [editForm, setEditForm] = useState({
-    title: '',
-    description: '',
-    priority: 'Media',
-    status: 'published',
-    image: null as File | null,
-    start_date: '',
-    end_date: '',
-  });
 
   // Preview State
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -114,17 +99,7 @@ export default function JobsPage() {
   }, []);
 
   const openEdit = (job: Job) => {
-    setEditingJob(job);
-    setEditForm({
-      title: job.title || '',
-      description: job.description || '',
-      priority: job.priority || 'Media',
-      status: job.status || 'published',
-      image: null,
-      start_date: job.start_date ? new Date(job.start_date).toISOString().slice(0, 16) : '',
-      end_date: job.end_date ? new Date(job.end_date).toISOString().slice(0, 16) : '',
-    });
-    setEditOpen(true);
+    router.push(`/enterprise/jobs/${job.id}/edit`);
   };
 
   const openPreview = (job: Job) => {
@@ -151,31 +126,7 @@ export default function JobsPage() {
       }
   }
 
-  const onEdit = async () => {
-    if (!editingJob) return;
-    setEditSubmitting(true);
-    try {
-      const body = new FormData();
-      body.append('id', editingJob.id);
-      body.append('title', editForm.title.trim());
-      body.append('description', editForm.description.trim());
-      body.append('priority', editForm.priority);
-      body.append('status', editForm.status);
-      if (editForm.start_date) body.append('start_date', new Date(editForm.start_date).toISOString());
-      if (editForm.end_date) body.append('end_date', new Date(editForm.end_date).toISOString());
-      if (editForm.image) body.append('image', editForm.image);
 
-      await apiClient.put(`/job/edit/${editingJob.id}/`, body);
-      toast.success('Empleo actualizado.');
-      setEditOpen(false);
-      setEditingJob(null);
-      await loadJobs();
-    } catch (error: any) {
-      toast.error(error?.message || 'No se pudo actualizar el empleo.');
-    } finally {
-      setEditSubmitting(false);
-    }
-  };
 
   const toggleJobStatus = async (job: Job) => {
     const nextStatus = job.status === 'published' ? 'draft' : 'published';
@@ -224,6 +175,8 @@ export default function JobsPage() {
     setStatusFilter('all');
     setPriorityFilter('all');
   };
+
+  const getApplicationsHref = (jobId: string) => `/enterprise/jobs/${jobId}/applications`;
 
   return (
     <DashboardLayout>
@@ -367,7 +320,7 @@ export default function JobsPage() {
                     {filteredJobs.map((job) => (
                       <tr key={job.id} className="border-b hover:bg-muted/30 transition-colors">
                         <td className="p-3 font-medium">
-                          <div className="flex items-center gap-2">
+                          <Link href={getApplicationsHref(job.id)} className="flex items-center gap-2 hover:underline decoration-primary">
                             {getImageUrl(job.image) && (
                               <img
                                 src={getImageUrl(job.image)}
@@ -376,7 +329,7 @@ export default function JobsPage() {
                               />
                             )}
                             <span className="line-clamp-2">{job.title}</span>
-                          </div>
+                          </Link>
                         </td>
                         <td className="p-3">
                           <Badge
@@ -397,30 +350,42 @@ export default function JobsPage() {
                           </Badge>
                         </td>
                         <td className="p-3 text-center">
-                          <Badge variant="secondary" className="font-mono">
-                            {job.applications_count || 0}
-                          </Badge>
+                          <Link href={getApplicationsHref(job.id)}>
+                            <Badge variant="secondary" className="font-mono hover:bg-muted/50 transition-colors cursor-pointer">
+                              {job.applications_count || 0}
+                            </Badge>
+                          </Link>
                         </td>
                         <td className="p-3 text-muted-foreground text-xs">
                           {job.created ? new Date(job.created).toLocaleDateString('es-ES') : '-'}
                         </td>
                         <td className="p-3 text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push(getApplicationsHref(job.id))}
+                              className="gap-1"
+                            >
+                              <Users className="h-4 w-4" />
+                              Ver postulados
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
                                 <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openPreview(job)}>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openPreview(job)}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 Vista previa
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openEdit(job)}>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openEdit(job)}>
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => toggleJobStatus(job)}>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => toggleJobStatus(job)}>
                                 {job.status === 'published' ? (
                                   <>
                                     <PowerOff className="mr-2 h-4 w-4" />
@@ -432,16 +397,17 @@ export default function JobsPage() {
                                     Activar
                                   </>
                                 )}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => confirmDelete(job)}
-                                className="text-destructive"
-                              >
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => confirmDelete(job)}
+                                  className="text-destructive"
+                                >
                                 <Trash className="mr-2 h-4 w-4" />
                                 Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -452,115 +418,7 @@ export default function JobsPage() {
           </CardContent>
         </Card>
 
-        {/* Edit Dialog */}
-        <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Editar Empleo</DialogTitle>
-              <DialogDescription>Actualiza datos de la oferta publicada.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-job-title">Título</Label>
-                <Input
-                  id="edit-job-title"
-                  value={editForm.title}
-                  onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-job-priority">Prioridad</Label>
-                  <select
-                      id="edit-job-priority"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={editForm.priority}
-                      onChange={(e) => setEditForm((p) => ({ ...p, priority: e.target.value }))}
-                    >
-                      <option value="Baja">Baja</option>
-                      <option value="Media">Media</option>
-                      <option value="Alta">Alta</option>
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-job-status">Estado</Label>
-                  <select
-                    id="edit-job-status"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={editForm.status}
-                    onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))}
-                  >
-                    <option value="published">Activo</option>
-                    <option value="draft">Inactivo</option>
-                  </select>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-start-date">Fecha Inicio</Label>
-                  <Input
-                    id="edit-start-date"
-                    type="datetime-local"
-                    value={editForm.start_date}
-                    onChange={(e) => setEditForm((p) => ({ ...p, start_date: e.target.value }))}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-end-date">Fecha Fin</Label>
-                  <Input
-                    id="edit-end-date"
-                    type="datetime-local"
-                    value={editForm.end_date}
-                    onChange={(e) => setEditForm((p) => ({ ...p, end_date: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="edit-job-image">Imagen (Opcional)</Label>
-                <Input
-                  id="edit-job-image"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setEditForm((p) => ({ ...p, image: e.target.files?.[0] || null }))}
-                />
-                {editingJob?.image ? (
-                  <div className="mt-2">
-                    <p className="mb-2 text-xs text-muted-foreground">Miniatura actual</p>
-                    <div className="h-28 w-full overflow-hidden rounded-md border bg-muted">
-                      <img
-                        src={getImageUrl(editingJob.image)}
-                        alt={editingJob.title}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-job-description">Descripción (HTML)</Label>
-                <Textarea
-                  id="edit-job-description"
-                  rows={8}
-                  value={editForm.description}
-                  onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
-                  placeholder="Puedes usar HTML básico aquí..."
-                  className="font-mono text-xs"
-                />
-                <p className="text-[10px] text-muted-foreground">Se renderizará como HTML en la vista pública.</p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSubmitting}>
-                Cancelar
-              </Button>
-              <Button onClick={onEdit} disabled={editSubmitting}>
-                {editSubmitting ? 'Guardando...' : 'Guardar Cambios'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Preview Dialog */}
         <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>

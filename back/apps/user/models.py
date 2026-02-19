@@ -82,6 +82,7 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
     last_name =         models.CharField(max_length=30, blank=True, default="")
     document_type =     models.CharField(max_length=2, choices=DOCUMENT_TYPES, default='CC', blank=True)
     nuip =              models.CharField(max_length=11, unique=True, blank=True, null=True)
+    phone =             models.CharField(max_length=20, blank=True, null=True)
     enterprise =        models.CharField(max_length=100, blank=True, null=True)
     
     gender =            models.CharField(max_length=10, choices=GENDER_TYPES, null=True, blank=True)
@@ -110,7 +111,6 @@ class UserProfile(models.Model):
     rut =                       models.ImageField(upload_to=image_rut_directory_path, blank=True, null=True)
     description =               models.TextField(blank=True, null=True)
     niche =                     models.CharField(max_length=120, blank=True, null=True)
-    phone =                     models.CharField(max_length=20, blank=True, null=True)
     address =                   models.CharField(max_length=100, blank=True, null=True)
     facebook =                  models.CharField(max_length=100, blank=True, null=True)
     instagram =                 models.CharField(max_length=100, blank=True, null=True)
@@ -257,5 +257,5 @@ class EnterprisePaymentNotificationLog(models.Model):
 
 @receiver(post_save, sender=UserAccount)
 def create_user_profile(sender, instance, created, **kwargs):
-    if created:
+    if created and instance.role == "enterprise":
         UserProfile.objects.get_or_create(user=instance)

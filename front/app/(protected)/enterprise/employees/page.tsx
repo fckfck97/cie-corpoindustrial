@@ -31,6 +31,9 @@ type BackendUser = {
   username: string;
   first_name?: string;
   last_name?: string;
+  phone?: string;
+  document_type?: string;
+  nuip?: string;
   enterprise?: string;
   role: string;
 };
@@ -39,6 +42,46 @@ type EmployeeListResponse = {
   results?: {
     employees?: BackendUser[];
   };
+};
+
+const onlyDigits = (value: string) => value.replace(/\D/g, '');
+const normalizePhone = (value: string) => {
+  const digits = onlyDigits(value);
+  if (digits.startsWith('57') && digits.length === 12) return digits.slice(2);
+  return digits.slice(0, 10);
+};
+const isValidPhone = (value: string) => /^3\d{9}$/.test(value);
+const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const getFriendlyEmployeeError = (error: any, fallback: string) => {
+  const raw = [
+    error?.message,
+    error?.details?.error,
+    error?.details?.detail,
+    JSON.stringify(error?.details ?? {}),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  const looksUnique = /unique|constraint|duplicad|duplicate|already exists|integrity/.test(raw);
+  const looksEmailOrUser = /email|correo|username|user_useraccount\.username|user_useraccount\.email/.test(raw);
+  const looksPhone = /phone|telefono|teléfono|user_useraccount\.phone/.test(raw);
+  const looksNuip = /nuip|documento|document_type|user_useraccount\.nuip/.test(raw);
+  const looksDefaultEmailExists = /ya existe un\/a user account con este\/a email/.test(raw);
+  const looksDefaultUserExists = /ya existe un\/a user account con este\/a username/.test(raw);
+  const looksDefaultPhoneExists = /ya existe un\/a user account con este\/a phone/.test(raw);
+  const looksDefaultNuipExists = /ya existe un\/a user account con este\/a nuip/.test(raw);
+
+  if ((looksEmailOrUser && looksUnique) || looksDefaultEmailExists || looksDefaultUserExists) {
+    return 'Lo siento, este correo no puede ser usado. Ya existe un usuario con ese correo.';
+  }
+  if ((looksPhone && looksUnique) || raw.includes('número de teléfono ingresado') || looksDefaultPhoneExists) {
+    return 'Lo siento, este teléfono no puede ser usado. Ya existe un usuario con ese número.';
+  }
+  if ((looksNuip && looksUnique) || raw.includes('número de documento ingresado') || looksDefaultNuipExists) {
+    return 'El número de documento ingresado pertenece a un usuario ya registrado en el portal.';
+  }
+  return fallback;
 };
 
 export default function EnterpriseEmployeesPage() {
@@ -60,6 +103,9 @@ export default function EnterpriseEmployeesPage() {
     email: '',
     first_name: '',
     last_name: '',
+    phone: '',
+    document_type: 'CC',
+    nuip: '',
   });
 
   const loadEmployees = useCallback(async () => {
@@ -125,6 +171,9 @@ export default function EnterpriseEmployeesPage() {
       email: item.email || '',
       first_name: item.first_name || '',
       last_name: item.last_name || '',
+      phone: normalizePhone(item.phone || ''),
+      document_type: item.document_type || 'CC',
+      nuip: onlyDigits(item.nuip || ''),
     });
     setEditOpen(true);
   };
@@ -134,10 +183,35 @@ export default function EnterpriseEmployeesPage() {
 
     setEditSubmitting(true);
     try {
-      const emailTrim = editForm.email.trim();
+      const emailTrim = editForm.email.trim().toLowerCase();
+      const firstName = editForm.first_name.trim();
+      const lastName = editForm.last_name.trim();
+      const documentType = editForm.document_type.trim();
+      const nuip = onlyDigits(editForm.nuip.trim());
+      const phone = normalizePhone(editForm.phone.trim());
 
-      if (!emailTrim) {
-        toast.error('El correo es obligatorio.');
+      if (!emailTrim || !isValidEmail(emailTrim)) {
+        toast.error('Ingresa un correo válido.');
+        return;
+      }
+      if (!firstName) {
+        toast.error('Los nombres son obligatorios.');
+        return;
+      }
+      if (!lastName) {
+        toast.error('Los apellidos son obligatorios.');
+        return;
+      }
+      if (!documentType) {
+        toast.error('Selecciona el tipo de documento.');
+        return;
+      }
+      if (!nuip || !/^\d+$/.test(nuip)) {
+        toast.error('El número de documento debe contener solo números.');
+        return;
+      }
+      if (!phone || !isValidPhone(phone)) {
+        toast.error('Teléfono inválido. Debe tener 10 dígitos e iniciar por 3.');
         return;
       }
 
@@ -145,8 +219,11 @@ export default function EnterpriseEmployeesPage() {
         id: editingUser.id,
         email: emailTrim,
         username: emailTrim,
-        first_name: editForm.first_name.trim(),
-        last_name: editForm.last_name.trim(),
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        document_type: documentType,
+        nuip,
       };
 
       await apiClient.put(`/employee/edit/${editingUser.id}/`, payload);
@@ -156,11 +233,25 @@ export default function EnterpriseEmployeesPage() {
       setEditingUser(null);
       await reload();
     } catch (error: any) {
-      toast.error(error?.message || 'No se pudo actualizar.');
+      toast.error(
+        getFriendlyEmployeeError(
+          error,
+          error?.message || 'No se pudo actualizar.',
+        ),
+      );
     } finally {
       setEditSubmitting(false);
     }
-  }, [editingUser, editForm.email, editForm.first_name, editForm.last_name, reload]);
+  }, [
+    editingUser,
+    editForm.document_type,
+    editForm.email,
+    editForm.first_name,
+    editForm.last_name,
+    editForm.nuip,
+    editForm.phone,
+    reload,
+  ]);
 
   return (
     <DashboardLayout>
@@ -261,6 +352,8 @@ export default function EnterpriseEmployeesPage() {
                     <tr className="text-left">
                       <th className="p-3 font-semibold">Nombre</th>
                       <th className="p-3 font-semibold">Correo</th>
+                      <th className="p-3 font-semibold">Teléfono</th>
+                      <th className="p-3 font-semibold">Documento</th>
                       <th className="p-3 font-semibold">Empresa</th>
                       <th className="p-3 font-semibold">Rol</th>
                       <th className="p-3 text-right font-semibold">Acciones</th>
@@ -278,6 +371,12 @@ export default function EnterpriseEmployeesPage() {
                         </td>
 
                         <td className="p-3 text-muted-foreground">{item.email}</td>
+
+                        <td className="p-3 text-muted-foreground">{item.phone || '-'}</td>
+
+                        <td className="p-3 text-muted-foreground">
+                          {item.document_type || '-'} {item.nuip ? `- ${item.nuip}` : ''}
+                        </td>
 
                         <td className="p-3">
                           <Badge variant="secondary">{item.enterprise || 'N/D'}</Badge>
@@ -371,6 +470,47 @@ export default function EnterpriseEmployeesPage() {
                   id="edit-last-name"
                   value={editForm.last_name}
                   onChange={(e) => setEditForm((p) => ({ ...p, last_name: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="edit-phone">Teléfono</Label>
+                <Input
+                  id="edit-phone"
+                  value={editForm.phone}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, phone: normalizePhone(e.target.value).slice(0, 10) }))
+                  }
+                  inputMode="numeric"
+                  maxLength={10}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="edit-document-type">Tipo Documento</Label>
+                <select
+                  id="edit-document-type"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={editForm.document_type}
+                  onChange={(e) => setEditForm((p) => ({ ...p, document_type: e.target.value }))}
+                >
+                  <option value="CC">CC</option>
+                  <option value="CE">CE</option>
+                  <option value="PA">Pasaporte</option>
+                  <option value="TI">TI</option>
+                  <option value="RC">RC</option>
+                  <option value="PE">PE</option>
+                  <option value="PT">PT</option>
+                </select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="edit-nuip">Numero de Documento</Label>
+                <Input
+                  id="edit-nuip"
+                  value={editForm.nuip}
+                  onChange={(e) => setEditForm((p) => ({ ...p, nuip: onlyDigits(e.target.value) }))}
+                  inputMode="numeric"
                 />
               </div>
             </div>

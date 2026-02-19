@@ -241,6 +241,11 @@ class EnterpriseBenefitsQrView(APIView):
     def get(self, request, *args, **kwargs):
         if request.user.role != "enterprise":
             return Response({"error": "Solo empresas."}, status=status.HTTP_403_FORBIDDEN)
+        if not Product.objects.filter(user=request.user).exists():
+            return Response(
+                {"error": "Debes tener al menos un beneficio para generar el QR."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         benefits_path = f"/employees/benefits?enterprise_id={request.user.id}&benefit=1&source=qr"
         login_path = f"/login?next={quote(benefits_path, safe='')}"

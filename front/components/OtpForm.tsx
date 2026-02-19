@@ -12,8 +12,10 @@ import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/comp
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 
+import type { User } from '@/types/auth';
+
 interface OtpFormProps {
-  onSuccess: () => void;
+  onSuccess: (user: User) => void;
 }
 
 export function OtpForm({ onSuccess }: OtpFormProps) {
@@ -69,13 +71,13 @@ export function OtpForm({ onSuccess }: OtpFormProps) {
       setError(null);
 
       try {
-        await verifyOtp({
+        const verifiedUser = await verifyOtp({
           identifier: contact.trim().toLowerCase(),
           otp,
           source: 'web',
         });
 
-        onSuccess();
+        onSuccess(verifiedUser);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falló la verificación');
       } finally {

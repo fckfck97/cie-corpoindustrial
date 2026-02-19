@@ -96,3 +96,7 @@ export function getFrontendRoleLabel(value?: string | null) {
 export function getPaymentMethodLabel(value?: string | null) {
   return getChoiceLabel(PAYMENT_METHOD_LABELS, value, '-');
 }
+
+export function getPaymentStatusLabel(value?: string | null) {
+  return getChoiceLabel(PAYMENT_STATUS_LABELS, value, 'Pendiente');
+}

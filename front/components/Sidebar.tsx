@@ -16,6 +16,8 @@ import {
   Package,
   Wallet,
   Building2,
+  AlertTriangle,
+  Lock,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -32,6 +34,30 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   const isAdmin = user?.backendRole === 'Admin' || user?.role === 'admin';
   const isEnterprise = user?.backendRole === 'enterprise' || user?.role === 'manager';
   const isEmployee = user?.backendRole === 'employees' || user?.role === 'employee';
+  const enterpriseBlocked = isEnterprise && user?.enterpriseProfileCompleted === false;
+  const employeeBlocked = isEmployee && user?.employeeProfileCompleted === false;
+  const profileBlocked = enterpriseBlocked || employeeBlocked;
+  const missingLabelsMap: Record<string, string> = {
+    email: 'Correo',
+    first_name: 'Nombres',
+    last_name: 'Apellidos',
+    enterprise: 'Nombre de empresa',
+    phone: 'Teléfono del representante',
+    document_type: 'Tipo documento',
+    nuip: 'Número de documento',
+    document_type_enterprise: 'Tipo documento empresa',
+    nuip_enterprise: 'NIT empresa',
+    description: 'Descripción',
+    niche: 'Sector Económico',
+    address: 'Dirección',
+  };
+  const missingFieldsRaw = enterpriseBlocked
+    ? (user?.enterpriseProfileMissing || [])
+    : (user?.employeeProfileMissing || []);
+  const missingFields = missingFieldsRaw.map((item) => {
+    if (item === 'phone' && employeeBlocked) return 'Teléfono';
+    return missingLabelsMap[item] || item;
+  });
   
   const dashboardHref = isAdmin
     ? '/admin/dashboard'
@@ -116,23 +142,59 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
 
           const Icon = item.icon;
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+          const disabled = profileBlocked && item.href !== '/profile';
 
           return (
-            <Link key={item.href} href={item.href} onClick={onNavigate} className="block">
-              <div
-                className={cn(
-                  'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )}
-              >
-                <Icon className={cn("h-4 w-4", isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground")} />
-                <span>{item.label}</span>
-              </div>
-            </Link>
+            <div key={item.href} className="block">
+              {disabled ? (
+                <div
+                  className={cn(
+                    'group flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium opacity-60',
+                    isActive ? 'bg-muted text-muted-foreground' : 'text-muted-foreground'
+                  )}
+                  aria-disabled="true"
+                >
+                  <Lock className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </div>
+              ) : (
+                <Link href={item.href} onClick={onNavigate} className="block">
+                  <div
+                    className={cn(
+                      'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    )}
+                  >
+                    <Icon className={cn("h-4 w-4", isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground")} />
+                    <span>{item.label}</span>
+                  </div>
+                </Link>
+              )}
+            </div>
           );
         })}
+
+        {profileBlocked && (
+          <div className="mt-4 rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-xs text-amber-900">
+            <div className="mb-1 flex items-center gap-2 font-semibold">
+              <AlertTriangle className="h-4 w-4" />
+              Perfil incompleto
+            </div>
+            <p>Completa todos los datos en <strong>Mi Perfil</strong> para habilitar el sistema.</p>
+            {missingFields.length > 0 && (
+              <div className="mt-2">
+                <p className="mb-1 font-medium">Faltan:</p>
+                <ul className="list-disc pl-4">
+                  {missingFields.map((field) => (
+                    <li key={field}>{field}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </nav>
     </aside>
   );

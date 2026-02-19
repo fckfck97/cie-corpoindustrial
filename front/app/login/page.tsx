@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { OtpForm } from "@/components/OtpForm";
 import { Building2 } from "lucide-react";
-import { getHomeByRole } from "@/lib/role-home";
+import { getPostLoginPath } from "@/lib/role-home";
 import Image from "next/image";
 
 export default function LoginPage() {
@@ -23,7 +23,7 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      router.push(safeNext || getHomeByRole(user));
+      router.replace(getPostLoginPath(user, safeNext));
     }
   }, [isAuthenticated, isLoading, router, user, safeNext]);
 
@@ -87,7 +87,7 @@ export default function LoginPage() {
 
             {/* Form Card */}
             <div className="animate-slide-in-left delay-100 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-slate-200/50 dark:border-slate-700/50">
-              <OtpForm onSuccess={() => router.push(safeNext || (user ? getHomeByRole(user) : "/employees/dashboard"))} />
+              <OtpForm onSuccess={(verifiedUser) => router.replace(getPostLoginPath(verifiedUser, safeNext))} />
             </div>
 
             {/* Footer text */}

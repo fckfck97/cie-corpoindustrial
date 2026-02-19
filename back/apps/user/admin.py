@@ -23,7 +23,7 @@ class UserAccountAdmin(BaseUserAdmin, ModelAdmin):
         (None, {"fields": ("email", "password")}),
         (
             _("Personal info"),
-            {"fields": ("username", "first_name", "last_name", "picture", "banner", "document_type", "nuip", "gender")},
+            {"fields": ("username", "first_name", "last_name", "phone", "picture", "banner", "document_type", "nuip", "gender")},
         ),
         (
             _("Enterprise info"),
@@ -68,7 +68,7 @@ class UserAccountAdmin(BaseUserAdmin, ModelAdmin):
         "verified",
     )
     list_filter = ("is_staff", "is_active", "is_superuser", "role", "verified", "document_type", "gender")
-    search_fields = ("email", "username", "first_name", "last_name", "nuip", "enterprise")
+    search_fields = ("email", "username", "first_name", "last_name", "nuip", "phone", "enterprise")
     readonly_fields = ("date_joined", "updated_at")
     ordering = ("-date_joined",)
     filter_horizontal = ("groups", "user_permissions")
@@ -76,8 +76,8 @@ class UserAccountAdmin(BaseUserAdmin, ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(ModelAdmin):
-    list_display = ('user_email', 'document_type_enterprise', 'nuip_enterprise', 'monthly_fee', 'phone', 'address', 'facebook', 'instagram', 'X')
-    search_fields = ('user__email', 'user__username', 'phone', 'address', 'facebook', 'instagram', 'X', 'nuip_enterprise')
+    list_display = ('user_email', 'document_type_enterprise', 'nuip_enterprise', 'monthly_fee', 'address', 'facebook', 'instagram', 'X')
+    search_fields = ('user__email', 'user__username', 'address', 'facebook', 'instagram', 'X', 'nuip_enterprise')
     list_filter = ('document_type_enterprise',)
     readonly_fields = ('created_at', 'updated_at')
     
@@ -89,7 +89,7 @@ class UserProfileAdmin(ModelAdmin):
             'fields': ('document_type_enterprise', 'nuip_enterprise', 'rut')
         }),
         (_('Contact Information'), {
-            'fields': ('phone', 'address', 'description')
+            'fields': ('address', 'description')
         }),
         (_('Social Media'), {
             'fields': ('facebook', 'instagram', 'X')

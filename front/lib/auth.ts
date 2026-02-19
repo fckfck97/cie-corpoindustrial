@@ -27,16 +27,27 @@ const normalizeUser = (raw: any): User => {
   return {
     id: String(raw?.id ?? ''),
     email: raw?.email,
+    username: raw?.username,
     phone: raw?.phone,
     firstName,
     lastName,
     name: raw?.name || fullName || raw?.email || 'Usuario',
+    documentType: raw?.document_type,
+    nuip: raw?.nuip,
     role: mapBackendRole(raw?.role),
     backendRole: raw?.role,
     companyId: raw?.enterprise || raw?.companyId || 'N/D',
     enterprise: raw?.enterprise,
+    enterpriseProfileCompleted: raw?.enterprise_profile_completed,
+    enterpriseProfileMissing: Array.isArray(raw?.enterprise_profile_missing)
+      ? raw.enterprise_profile_missing
+      : [],
+    employeeProfileCompleted: raw?.employee_profile_completed,
+    employeeProfileMissing: Array.isArray(raw?.employee_profile_missing)
+      ? raw.employee_profile_missing
+      : [],
     permissions: raw?.permissions ?? [],
-    avatar: raw?.avatar || raw?.picture,
+    avatar: raw?.picture || raw?.avatar,
   };
 };
 
@@ -110,10 +121,8 @@ export function getToken(): string | null {
 export function clearAuth(): void {
   if (typeof window === 'undefined') return;
 
-  localStorage.removeItem(config.auth.tokenKey);
-  localStorage.removeItem(config.auth.refreshTokenKey);
-  localStorage.removeItem('__token_expires_at');
-  localStorage.removeItem(config.auth.sessionKey);
+  localStorage.clear();
+  sessionStorage.clear();
 }
 
 export function persistUser(user: User): void {
@@ -156,7 +165,22 @@ export async function verifySession(): Promise<User | null> {
     if (typeof window !== 'undefined') {
       const raw = localStorage.getItem(config.auth.sessionKey);
       if (raw) {
-        return JSON.parse(raw) as User;
+        const parsed = JSON.parse(raw) as User;
+        const isEnterprise =
+          parsed?.backendRole === 'enterprise' || parsed?.role === 'manager';
+        const isEmployee =
+          parsed?.backendRole === 'employees' || parsed?.role === 'employee';
+        const hasCompletionFlag =
+          typeof parsed?.enterpriseProfileCompleted === 'boolean';
+        const hasEmployeeCompletionFlag =
+          typeof parsed?.employeeProfileCompleted === 'boolean';
+        if (
+          (!isEnterprise && !isEmployee) ||
+          (isEnterprise && hasCompletionFlag) ||
+          (isEmployee && hasEmployeeCompletionFlag)
+        ) {
+          return parsed;
+        }
       }
     }
 

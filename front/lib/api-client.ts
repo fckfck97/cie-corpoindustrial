@@ -53,7 +53,8 @@ class ApiClient {
 
       if (response.status === 401) {
         // Clear auth and redirect to login
-        localStorage.removeItem(config.auth.tokenKey);
+        localStorage.clear();
+        sessionStorage.clear();
         if (typeof window !== 'undefined') {
           const next = `${window.location.pathname}${window.location.search || ''}`;
           window.location.href = `/login?next=${encodeURIComponent(next)}`;
@@ -62,8 +63,25 @@ class ApiClient {
       }
 
       if (response.status === 400) {
+        const extractFirstError = (payload: any): string | null => {
+          if (!payload || typeof payload !== 'object') return null;
+          const keys = Object.keys(payload);
+          if (!keys.length) return null;
+          const firstValue = payload[keys[0]];
+          if (typeof firstValue === 'string' && firstValue.trim()) return firstValue;
+          if (Array.isArray(firstValue) && firstValue.length) {
+            const first = firstValue[0];
+            if (typeof first === 'string' && first.trim()) return first;
+          }
+          if (typeof firstValue === 'object') {
+            return extractFirstError(firstValue);
+          }
+          return null;
+        };
+
         const validationMessage =
           (typeof data === 'object' && (data?.detail || data?.error || data?.message)) ||
+          extractFirstError(data) ||
           (typeof data === 'string' && data.trim()) ||
           'Validation failed';
         throw new ValidationError(

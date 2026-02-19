@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { apiClient } from '@/lib/api-client';
 import { getImageUrl } from '@/lib/utils';
 import { ArrowLeft, Mail, Phone, FileText, CalendarDays, UserRound } from 'lucide-react';
+import { toast } from 'sonner';
 
 type JobData = {
   id: string;
@@ -39,6 +40,7 @@ export default function EnterpriseJobApplicationsPage() {
   const jobId = params?.id;
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [job, setJob] = useState<JobData | null>(null);
   const [applications, setApplications] = useState<JobApplication[]>([]);
 
@@ -46,13 +48,22 @@ export default function EnterpriseJobApplicationsPage() {
     if (!jobId) return;
     const load = async () => {
       setLoading(true);
+      setError('');
       try {
         const [jobResponse, applicationsResponse] = await Promise.all([
           apiClient.get<JobDetailResponse>(`/job/${jobId}/`),
-          apiClient.get<JobApplication[]>(`/enterprise/applications/?job=${jobId}`),
+          apiClient.get<JobApplication[] | { results?: { applications?: JobApplication[] } }>(
+            `/enterprise/applications/?job=${jobId}`
+          ),
         ]);
         setJob(jobResponse?.job || null);
-        setApplications(applicationsResponse || []);
+        const parsedApplications = Array.isArray(applicationsResponse)
+          ? applicationsResponse
+          : applicationsResponse?.results?.applications || [];
+        setApplications(parsedApplications);
+      } catch (err: any) {
+        setError(err?.message || 'No se pudieron cargar las postulaciones.');
+        toast.error(err?.message || 'No se pudieron cargar las postulaciones.');
       } finally {
         setLoading(false);
       }
@@ -100,6 +111,12 @@ export default function EnterpriseJobApplicationsPage() {
         <div className="space-y-3">
           {loading ? (
             <div className="py-8 text-center text-sm text-muted-foreground">Cargando postulaciones...</div>
+          ) : error ? (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-destructive">
+                {error}
+              </CardContent>
+            </Card>
           ) : applications.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">

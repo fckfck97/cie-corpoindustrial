@@ -23,7 +23,7 @@ import { Badge } from '@/components/ui/badge';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-import { Plus, Eye, Pencil, Gift, QrCode, Search, Filter, X, Download, Share2 } from 'lucide-react';
+import { Plus, Pencil, Gift, QrCode, Search, Filter, X, Download, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getImageUrl } from '@/lib/utils';
 
@@ -52,33 +52,14 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Preview
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
-
-  // Edit
-  const [editOpen, setEditOpen] = useState(false);
-  const [editSubmitting, setEditSubmitting] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-
   // QR
   const [qrOpen, setQrOpen] = useState(false);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrPath, setQrPath] = useState('');
-  const [qrProduct, setQrProduct] = useState<Product | null>(null);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-
-  const [editForm, setEditForm] = useState({
-    name: '',
-    description: '',
-    category: '',
-    subcategory: '',
-    extracategory: '',
-    image: null as File | null,
-  });
 
   const loadProducts = async () => {
     setLoading(true);
@@ -96,52 +77,16 @@ export default function ProductsPage() {
     loadProducts();
   }, []);
 
-  const openPreview = (product: Product) => {
-    setPreviewProduct(product);
-    setPreviewOpen(true);
+  const openEdit = (productId: string) => {
+    router.push(`/enterprise/products/${productId}/edit`);
   };
 
-  const openEdit = (product: Product) => {
-    setEditingProduct(product);
-    setEditForm({
-      name: product.name || '',
-      description: product.description || '',
-      category: product.category || '',
-      subcategory: product.subcategory || '',
-      extracategory: product.extracategory || '',
-      image: null,
-    });
-    setEditOpen(true);
-  };
-
-  const onEdit = async () => {
-    if (!editingProduct) return;
-
-    setEditSubmitting(true);
-    try {
-      const body = new FormData();
-      body.append('id', editingProduct.id);
-      body.append('name', editForm.name.trim());
-      body.append('description', editForm.description.trim());
-      body.append('category', editForm.category.trim());
-      body.append('subcategory', editForm.subcategory.trim());
-      body.append('extracategory', editForm.extracategory.trim());
-      if (editForm.image) body.append('image', editForm.image);
-
-      await apiClient.put(`/product/edit/${editingProduct.id}/`, body);
-
-      toast.success('Producto actualizado.');
-      setEditOpen(false);
-      setEditingProduct(null);
-      await loadProducts();
-    } catch (error: any) {
-      toast.error(error?.message || 'No se pudo actualizar producto');
-    } finally {
-      setEditSubmitting(false);
+  const openQr = async () => {
+    if (!products.length) {
+      toast.error('Debes tener al menos un beneficio para generar el QR de empresa.');
+      return;
     }
-  };
 
-  const openQr = async (product?: Product) => {
     setQrLoading(true);
     try {
       const response = await apiClient.get<{
@@ -150,7 +95,6 @@ export default function ProductsPage() {
         benefits_url?: string;
       }>(`/enterprise/benefits/qr/`);
 
-      setQrProduct(product || null);
       setQrPath(response?.qr_payload || response?.login_url || response?.benefits_url || '');
       setQrOpen(true);
     } catch (error: any) {
@@ -241,7 +185,7 @@ export default function ProductsPage() {
                 variant="outline"
                 onClick={() => openQr()}
                 className="gap-2"
-                disabled={qrLoading}
+                disabled={qrLoading || loading || products.length === 0}
               >
                 <QrCode className="h-4 w-4" />
                 {qrLoading ? 'Generando...' : 'QR de Empresa'}
@@ -358,7 +302,7 @@ export default function ProductsPage() {
                 <p className="mt-2 text-sm text-muted-foreground">
                   {hasActiveFilters
                     ? 'No se encontraron productos con esos criterios'
-                    : 'No hay productos registrados'}
+                    : 'No hay beneficios registrados. Crea uno para habilitar el QR de empresa.'}
                 </p>
 
                 {hasActiveFilters && (
@@ -434,25 +378,7 @@ export default function ProductsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => openQr(product)}
-                              aria-label="Ver QR"
-                            >
-                              <QrCode className="h-4 w-4" />
-                            </Button>
-
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openPreview(product)}
-                              aria-label="Vista previa"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEdit(product)}
+                              onClick={() => openEdit(product.id)}
                               className="hover:bg-primary/10"
                               aria-label="Editar"
                             >
@@ -468,129 +394,6 @@ export default function ProductsPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Preview */}
-        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Vista previa de producto</DialogTitle>
-              <DialogDescription>Detalle del producto cargado.</DialogDescription>
-            </DialogHeader>
-
-            {previewProduct && (
-              <div className="space-y-3">
-                {getImageUrl(previewProduct.image) ? (
-                  <img
-                    src={getImageUrl(previewProduct.image)}
-                    alt={previewProduct.name}
-                    className="h-48 w-full rounded-md border object-cover"
-                  />
-                ) : null}
-
-                <div>
-                  <strong>Nombre:</strong> {previewProduct.name}
-                </div>
-                <div>
-                  <strong>Categoría:</strong> {previewProduct.category || '-'}
-                </div>
-                <div>
-                  <strong>Subcategoría:</strong> {previewProduct.subcategory || '-'}
-                </div>
-                <div>
-                  <strong>Extra categoría:</strong> {previewProduct.extracategory || '-'}
-                </div>
-                <div>
-                  <strong>Descripción:</strong> {previewProduct.description || '-'}
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit */}
-        <Dialog
-          open={editOpen}
-          onOpenChange={(open) => {
-            setEditOpen(open);
-            if (!open) setEditingProduct(null);
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Editar producto</DialogTitle>
-              <DialogDescription>Actualiza la información del producto.</DialogDescription>
-            </DialogHeader>
-
-            <div className="grid gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-product-name">Nombre</Label>
-                <Input
-                  id="edit-product-name"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="edit-product-category">Categoría</Label>
-                <Input
-                  id="edit-product-category"
-                  value={editForm.category}
-                  onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="edit-product-subcategory">Subcategoría</Label>
-                <Input
-                  id="edit-product-subcategory"
-                  value={editForm.subcategory}
-                  onChange={(e) => setEditForm((p) => ({ ...p, subcategory: e.target.value }))}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="edit-product-extracategory">Extra categoría</Label>
-                <Input
-                  id="edit-product-extracategory"
-                  value={editForm.extracategory}
-                  onChange={(e) => setEditForm((p) => ({ ...p, extracategory: e.target.value }))}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="edit-product-image">Imagen (opcional)</Label>
-                <Input
-                  id="edit-product-image"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    setEditForm((p) => ({ ...p, image: e.target.files?.[0] || null }))
-                  }
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="edit-product-description">Descripción</Label>
-                <Textarea
-                  id="edit-product-description"
-                  rows={4}
-                  value={editForm.description}
-                  onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSubmitting}>
-                Cancelar
-              </Button>
-              <Button onClick={onEdit} disabled={editSubmitting}>
-                {editSubmitting ? 'Guardando...' : 'Guardar cambios'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* QR */}
         <Dialog open={qrOpen} onOpenChange={setQrOpen}>
@@ -619,9 +422,7 @@ export default function ProductsPage() {
                   </div>
 
                   <div className="text-center">
-                    <p className="font-semibold">
-                      {qrProduct?.name || 'Beneficios de la Empresa'}
-                    </p>
+                    <p className="font-semibold">Beneficios de la Empresa</p>
                     <p className="text-xs text-muted-foreground">Escanea para acceder</p>
                   </div>
                 </div>

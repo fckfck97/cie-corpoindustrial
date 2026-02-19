@@ -7,16 +7,6 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Building2, Plus, Wallet, Edit2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -43,18 +33,6 @@ export default function AdminCompaniesPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const [editingEnterprise, setEditingEnterprise] = useState<BackendUser | null>(null);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editSubmitting, setEditSubmitting] = useState(false);
-  const [editForm, setEditForm] = useState({
-    email: '',
-    username: '',
-    first_name: '',
-    last_name: '',
-    enterprise: '',
-    is_active: true,
-  });
-
   const loadEnterprises = useCallback(async () => {
     setLoading(true);
     try {
@@ -72,58 +50,23 @@ export default function AdminCompaniesPage() {
   }, [loadEnterprises]);
 
   const sortedItems = useMemo(
-    () => [...items].sort((a, b) => (a.enterprise || '').localeCompare(b.enterprise || '')),
+    () => [...items].filter(item => item.is_active !== false).sort((a, b) => (a.enterprise || '').localeCompare(b.enterprise || '')),
     [items]
   );
-
-  const openEditModal = (enterprise: BackendUser) => {
-    setEditingEnterprise(enterprise);
-    setEditForm({
-      email: enterprise.email || '',
-      username: enterprise.username || '',
-      first_name: enterprise.first_name || '',
-      last_name: enterprise.last_name || '',
-      enterprise: enterprise.enterprise || '',
-      is_active: enterprise.is_active !== false,
-    });
-    setEditModalOpen(true);
-  };
-
-  const submitEnterpriseEdit = async () => {
-    if (!editingEnterprise) return;
-    setEditSubmitting(true);
-    try {
-      const payload = {
-        id: editingEnterprise.id,
-        email: editForm.email.trim(),
-        username: editForm.username.trim(),
-        first_name: editForm.first_name.trim(),
-        last_name: editForm.last_name.trim(),
-        enterprise: editForm.enterprise.trim(),
-        is_active: editForm.is_active ? 'true' : 'false',
-      };
-      await apiClient.put(`/employee/edit/${editingEnterprise.id}/`, payload);
-      toast.success('Empresa actualizada.');
-      setEditModalOpen(false);
-      setEditingEnterprise(null);
-      await loadEnterprises();
-    } catch (error: any) {
-      toast.error(error?.message || 'No se pudo actualizar la empresa.');
-    } finally {
-      setEditSubmitting(false);
-    }
-  };
 
   const onDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
     try {
-      await apiClient.delete(`/employee/${deleteId}/`);
-      toast.success('Empresa eliminada.');
+      const payload = new FormData();
+      payload.append('id', deleteId);
+      payload.append('is_active', 'false');
+      await apiClient.put(`/employee/edit/${deleteId}/`, payload);
+      toast.success('Empresa desactivada correctamente.');
       setDeleteId(null);
       await loadEnterprises();
     } catch (error: any) {
-      toast.error(error?.message || 'No se pudo eliminar.');
+      toast.error(error?.message || 'No se pudo desactivar la empresa.');
     } finally {
       setDeleting(false);
     }
@@ -199,7 +142,11 @@ export default function AdminCompaniesPage() {
                               <Wallet className="h-4 w-4" />
                             </Link>
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => openEditModal(item)}><Edit2 className="h-4 w-4" /></Button>
+                          <Button size="sm" variant="outline" asChild>
+                            <Link href={`/admin/companies/${item.id}/edit`}>
+                              <Edit2 className="h-4 w-4" />
+                            </Link>
+                          </Button>
                           <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteId(item.id)}><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </td>
@@ -214,38 +161,14 @@ export default function AdminCompaniesPage() {
 
       <ConfirmDialog
         open={deleteId !== null}
-        title="Eliminar empresa"
-        description="Esta accion no se puede deshacer."
-        actionLabel="Eliminar"
+        title="¿Desactivar empresa?"
+        description="La empresa dejará de aparecer en el listado pero sus datos y empleados se conservarán."
+        actionLabel="Desactivar"
         isDestructive
         isLoading={deleting}
         onConfirm={onDelete}
         onCancel={() => setDeleteId(null)}
       />
-
-      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Empresa</DialogTitle>
-            <DialogDescription>Actualiza datos de la empresa.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="grid gap-2"><Label>Correo</Label><Input value={editForm.email} onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))} /></div>
-            <div className="grid gap-2"><Label>Usuario</Label><Input value={editForm.username} onChange={(e) => setEditForm((p) => ({ ...p, username: e.target.value }))} /></div>
-            <div className="grid gap-2"><Label>Nombres</Label><Input value={editForm.first_name} onChange={(e) => setEditForm((p) => ({ ...p, first_name: e.target.value }))} /></div>
-            <div className="grid gap-2"><Label>Apellidos</Label><Input value={editForm.last_name} onChange={(e) => setEditForm((p) => ({ ...p, last_name: e.target.value }))} /></div>
-            <div className="grid gap-2"><Label>Empresa</Label><Input value={editForm.enterprise} onChange={(e) => setEditForm((p) => ({ ...p, enterprise: e.target.value }))} /></div>
-            <div className="md:col-span-2 flex items-center gap-2">
-              <input id="is_active" type="checkbox" checked={editForm.is_active} onChange={(e) => setEditForm((p) => ({ ...p, is_active: e.target.checked }))} />
-              <Label htmlFor="is_active">Empresa activa</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditModalOpen(false)}>Cancelar</Button>
-            <Button onClick={submitEnterpriseEdit} disabled={editSubmitting}>{editSubmitting ? 'Guardando...' : 'Guardar cambios'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
