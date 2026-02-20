@@ -55,6 +55,25 @@ from .utils.billing import (
 User = get_user_model()
 
 
+def _mutable_request_data(request):
+    """
+    Build a mutable payload without QueryDict.deepcopy().
+    In Python 3.12, deepcopy can fail for uploaded files (BufferedRandom).
+    """
+    incoming = request.data
+
+    if hasattr(incoming, "lists"):
+        payload = {}
+        for key, values in incoming.lists():
+            payload[key] = values[0] if len(values) == 1 else list(values)
+        return payload
+
+    if isinstance(incoming, dict):
+        return incoming.copy()
+
+    return dict(incoming)
+
+
 def normalize_colombian_phone(raw_phone):
     phone = re.sub(r"\D+", "", str(raw_phone or ""))
     if phone.startswith("57") and len(phone) == 12:
@@ -185,7 +204,7 @@ class UserView(APIView):
 
     def put(self, request, *args, **kwargs):
         try:
-            data = request.data.copy()
+            data = _mutable_request_data(request)
             pk = data.get("id") or kwargs.get("pk")
             if not pk:
                 return Response(
@@ -276,7 +295,7 @@ class UserView(APIView):
             return Response({'error': 'Error al Editar el Titular: {}'.format(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request, *args, **kwargs):
-        data = request.data.copy()
+        data = _mutable_request_data(request)
         actor = request.user
 
         if actor.role == "Admin":
@@ -414,7 +433,7 @@ class EnterprisesProfile(APIView):
     
     def put(self,request, *args, **kwargs):
         try:
-            data = request.data.copy()
+            data = _mutable_request_data(request)
             actor = request.user
 
             pk = kwargs.get("pk") or data.get("id")
