@@ -74,16 +74,23 @@ export default function AdminCompaniesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Empresas</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Modulo admin: listado y gestion de empresas.</p>
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
+            <Building2 className="h-8 w-8 text-primary" />
+            Empresas
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Modulo admin: listado y gestion de empresas.
+          </p>
         </div>
-        <Button asChild className="gap-2">
-          <Link href="/admin/companies/create">
-            <Plus className="h-4 w-4" /> Crear Empresa
-          </Link>
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button asChild className="gap-2 ml-auto">
+            <Link href="/admin/companies/create">
+              <Plus className="h-4 w-4" /> Crear Empresa
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -114,7 +121,7 @@ export default function AdminCompaniesPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="border-b bg-slate-50">
+                <thead className="border-b bg-muted/50">
                   <tr className="text-left">
                     <th className="p-3 font-semibold">Empresa</th>
                     <th className="p-3 font-semibold">Correo</th>
@@ -124,7 +131,7 @@ export default function AdminCompaniesPage() {
                 </thead>
                 <tbody>
                   {sortedItems.map((item) => (
-                    <tr key={item.id} className="border-b hover:bg-slate-50/60">
+                    <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
                       <td className="p-3">
                         <div className="font-semibold">{item.enterprise || item.username}</div>
                         <div className="text-xs text-muted-foreground">{`${item.first_name || ''} ${item.last_name || ''}`.trim() || 'Sin nombre'}</div>

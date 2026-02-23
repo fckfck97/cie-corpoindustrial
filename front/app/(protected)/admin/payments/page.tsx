@@ -186,9 +186,16 @@ export default function AdminPaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-black tracking-tight">Pagos Empresas</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Registro y trazabilidad de pagos por empresa.</p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
+            <Wallet className="h-8 w-8 text-primary" />
+            Pagos Empresas
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Registro y trazabilidad de pagos por empresa.
+          </p>
+        </div>
       </div>
 
       {loading ? (
@@ -266,7 +273,7 @@ export default function AdminPaymentsPage() {
                           </div>
                           <div className="overflow-x-auto">
                             <table className="w-full text-sm">
-                              <thead className="border-b bg-slate-50">
+                              <thead className="border-b bg-muted/50">
                                 <tr className="text-left">
                                   <th className="p-3 font-semibold">Mes</th>
                                   <th className="p-3 font-semibold">Estado</th>
@@ -276,7 +283,7 @@ export default function AdminPaymentsPage() {
                               </thead>
                               <tbody>
                                 {(row.payments || []).map((p) => (
-                                  <tr key={p.id} className="border-b">
+                                  <tr key={p.id} className="border-b hover:bg-muted/30 transition-colors">
                                     <td className="p-3">{monthLabel(p.year, p.month)}</td>
                                     <td className="p-3">{statusBadge(p.status)}</td>
                                     <td className="p-3">{p.amount}</td>

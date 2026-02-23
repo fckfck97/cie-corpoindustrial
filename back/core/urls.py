@@ -13,6 +13,7 @@ urlpatterns = [
     path('', include('apps.user.urls')),
     path('', include('apps.products.urls')),
     path('', include('apps.job.urls')),
+    path('', include('apps.project.urls')),
     path('', include('apps.complaints.urls')),
 
 

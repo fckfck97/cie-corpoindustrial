@@ -334,15 +334,17 @@ export default function AdminBenefitsRedemptionsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-2">
-            <Gift className="h-8 w-8" />
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
+            <Gift className="h-8 w-8 text-primary" />
             Canjes de Beneficios
           </h1>
-          <p className="text-muted-foreground mt-1">Control y análisis de redenciones por empresa</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Control y análisis de redenciones por empresa
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button onClick={exportToExcel} variant="outline" size="sm" className="gap-2">
             <FileSpreadsheet className="h-4 w-4" />
             Excel
@@ -587,7 +589,7 @@ export default function AdminBenefitsRedemptionsPage() {
                               </thead>
                               <tbody>
                                 {redemptions.map((redemption) => (
-                                  <tr key={redemption.id} className="border-b hover:bg-muted/30">
+                                  <tr key={redemption.id} className="border-b hover:bg-muted/30 transition-colors">
                                     <td className="p-3">
                                       <div className="flex items-center gap-2">
                                         <span className="font-medium">
