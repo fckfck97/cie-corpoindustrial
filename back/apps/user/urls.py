@@ -23,8 +23,8 @@ urlpatterns = [
     path('enterprise/profile/<uuid:pk>/',EnterprisesProfile.as_view(), name='enterprise-profile'),
     path('enterprise/profile/edit/<uuid:pk>/',EnterprisesProfile.as_view(), name='enterprise-edit'),
     
-    path('auth/login/otp/request/web/', OTPLoginRequestWebView.as_view(), name='otp-login-request-web'),
-    path('auth/login/otp/verify/', OTPLoginVerifyWebView.as_view(), name='otp-login-verify-web'),
+    path('authentication/login/otp/request/web/', OTPLoginRequestWebView.as_view(), name='otp-login-request-web'),
+    path('authentication/login/otp/verify/', OTPLoginVerifyWebView.as_view(), name='otp-login-verify-web'),
     path('billing/enterprises/', EnterpriseBillingDashboardView.as_view(), name='billing-enterprises'),
     path('billing/generate/', EnterpriseBillingGenerateView.as_view(), name='billing-generate'),
     path('billing/activate/', EnterpriseBillingActivationCronView.as_view(), name='billing-activate'),

@@ -9,7 +9,6 @@ import { Suspense, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { OtpForm } from "@/components/OtpForm";
-import { Building2 } from "lucide-react";
 import { getPostLoginPath } from "@/lib/role-home";
 import Image from "next/image";
 
@@ -68,17 +67,18 @@ function LoginPageContent() {
           <div className="w-full max-w-md">
             {/* Mobile header */}
             <div className="mb-10 text-center lg:hidden animate-fade-in">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-2xl border-2 border-secondary/30">
-                  <Building2 className="h-8 w-8 text-secondary" />
-                </div>
-              </div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                <span className="text-primary">CIE</span>{" "}
-                <span className="text-secondary">Corpoindustrial</span>
-              </h1>
-              <p className="mt-2 text-base text-muted-foreground">
-                Sistema de Gestión Empresarial
+              <Image
+                src="/logo.png"
+                alt="CIE Logo"
+                width={80}
+                height={80}
+                className="mx-auto mb-6"
+              />
+              <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Bienvenido
+              </h2>
+              <p className="mt-3 text-base text-muted-foreground max-w-sm mx-auto">
+                Ingresa tu email para recibir un código de verificación
               </p>
             </div>
 

@@ -66,7 +66,7 @@ function extractTokens(payload: any): AuthTokens {
  * Request OTP for phone/email
  */
 export async function requestOtp(payload: OtpRequestPayload): Promise<OtpRequestResponse> {
-  return apiClient.post('/auth/login/otp/request/web/', payload, { skipAuth: true });
+  return apiClient.post('/authentication/login/otp/request/web/', payload, { skipAuth: true });
 }
 
 /**
@@ -75,7 +75,7 @@ export async function requestOtp(payload: OtpRequestPayload): Promise<OtpRequest
 export async function verifyOtp(
   payload: OtpVerifyPayload
 ): Promise<{ user: User; tokens: AuthTokens }> {
-  const response = await apiClient.post<any>('/auth/login/otp/verify/', payload, {
+  const response = await apiClient.post<any>('/authentication/login/otp/verify/', payload, {
     skipAuth: true,
   });
 
@@ -185,7 +185,7 @@ export async function verifySession(): Promise<User | null> {
     }
 
     // Fallback: obtener usuario autenticado desde endpoints backend disponibles
-    const endpoints = ['/auth/users/me/', '/auth/edit/'];
+    const endpoints = ['/authentication/users/me/', '/authentication/edit/'];
     for (const endpoint of endpoints) {
       try {
         const response: any = await apiClient.get(endpoint);

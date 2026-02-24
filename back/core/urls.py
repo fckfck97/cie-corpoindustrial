@@ -7,9 +7,9 @@ urlpatterns = [
     # Django Admin
     path('admin/', admin.site.urls),
     #Auth Djoser
-    path('auth/', include('djoser.urls')),
-    path('auth/', include('djoser.urls.jwt')),
-    path('auth/', include('djoser.social.urls')),
+    path('authentication/', include('djoser.urls')),
+    path('authentication/', include('djoser.urls.jwt')),
+    path('authentication/', include('djoser.social.urls')),
     path('', include('apps.user.urls')),
     path('', include('apps.products.urls')),
     path('', include('apps.job.urls')),
