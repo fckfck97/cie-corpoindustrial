@@ -24,6 +24,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Pencil, Search, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { getBackendRoleLabel } from '@/lib/model-choice-labels';
+import { DEFAULT_PAGE_SIZE, buildPageQuery, getPageRange, parsePaginatedCollection } from '@/utils/pagination';
+import { PaginationControls } from '@/components/PaginationControls';
 
 type BackendUser = {
   id: string;
@@ -39,6 +41,9 @@ type BackendUser = {
 };
 
 type EmployeeListResponse = {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
   results?: {
     employees?: BackendUser[];
   };
@@ -89,6 +94,10 @@ export default function EnterpriseEmployeesPage() {
 
   const [items, setItems] = useState<BackendUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalEmployees, setTotalEmployees] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -108,15 +117,21 @@ export default function EnterpriseEmployeesPage() {
     nuip: '',
   });
 
-  const loadEmployees = useCallback(async () => {
-    const data = await apiClient.get<EmployeeListResponse>('/employee/list/');
-    setItems(data?.results?.employees ?? []);
+  const loadEmployees = useCallback(async (page: number = 1) => {
+    const query = buildPageQuery({ page, pageSize: DEFAULT_PAGE_SIZE, pageParam: 'p' });
+    const data = await apiClient.get<EmployeeListResponse>(`/employee/list/?${query}`);
+    const parsed = parsePaginatedCollection<BackendUser>(data, (payload) => payload?.results?.employees ?? []);
+    setItems(parsed.items);
+    setTotalEmployees(parsed.count);
+    setHasNextPage(Boolean(parsed.next));
+    setHasPreviousPage(Boolean(parsed.previous));
+    setCurrentPage(page);
   }, []);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
-      await loadEmployees();
+      await loadEmployees(page);
     } catch (error: any) {
       toast.error(error?.message || 'No se pudo cargar la información.');
     } finally {
@@ -125,7 +140,7 @@ export default function EnterpriseEmployeesPage() {
   }, [loadEmployees]);
 
   useEffect(() => {
-    reload();
+    reload(1);
   }, [reload]);
 
   const sortedItems = useMemo(() => {
@@ -157,7 +172,7 @@ export default function EnterpriseEmployeesPage() {
       await apiClient.delete(`/employee/${deleteId}/`);
       toast.success('Empleado eliminado.');
       setDeleteId(null);
-      await reload();
+      await reload(currentPage);
     } catch (error: any) {
       toast.error(error?.message || 'No se pudo eliminar.');
     } finally {
@@ -231,7 +246,7 @@ export default function EnterpriseEmployeesPage() {
       toast.success('Empleado actualizado.');
       setEditOpen(false);
       setEditingUser(null);
-      await reload();
+      await reload(currentPage);
     } catch (error: any) {
       toast.error(
         getFriendlyEmployeeError(
@@ -252,6 +267,13 @@ export default function EnterpriseEmployeesPage() {
     editForm.phone,
     reload,
   ]);
+
+  const pageRange = getPageRange({
+    page: currentPage,
+    pageSize: DEFAULT_PAGE_SIZE,
+    currentItems: items.length,
+    totalCount: totalEmployees,
+  });
 
   return (
     <DashboardLayout>
@@ -310,7 +332,7 @@ export default function EnterpriseEmployeesPage() {
 
             {searchTerm && (
               <div className="mt-2 text-sm text-muted-foreground">
-                Mostrando {sortedItems.length} de {items.length} empleados
+                Mostrando {sortedItems.length} de {items.length} en esta página · total {totalEmployees}
               </div>
             )}
           </CardContent>
@@ -323,7 +345,7 @@ export default function EnterpriseEmployeesPage() {
             <CardDescription>
               {loading
                 ? 'Cargando...'
-                : `Total: ${sortedItems.length} empleado${sortedItems.length !== 1 ? 's' : ''}`}
+                : `Total: ${totalEmployees} empleado${totalEmployees !== 1 ? 's' : ''}`}
             </CardDescription>
           </CardHeader>
 
@@ -416,6 +438,23 @@ export default function EnterpriseEmployeesPage() {
               </div>
             )}
           </CardContent>
+          {!loading && (
+            <CardContent className="pt-0">
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={pageRange.totalPages}
+                totalCount={totalEmployees}
+                start={pageRange.start}
+                end={pageRange.end}
+                hasPrevious={hasPreviousPage}
+                hasNext={hasNextPage}
+                loading={loading}
+                itemLabel="empleados"
+                onPrevious={() => loadEmployees(currentPage - 1)}
+                onNext={() => loadEmployees(currentPage + 1)}
+              />
+            </CardContent>
+          )}
         </Card>
 
         {/* Delete confirm */}

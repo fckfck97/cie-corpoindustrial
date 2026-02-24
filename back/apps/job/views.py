@@ -263,8 +263,10 @@ class EnterpriseApplicationsView(APIView):
             applications = applications.filter(job_id=job_id)
 
         applications = applications.order_by('-created_at')
-        serializer = JobApplicationSerializer(applications, many=True, context={"request": request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        paginator = SmallSetPagination()
+        paginated = paginator.paginate_queryset(applications, request)
+        serializer = JobApplicationSerializer(paginated, many=True, context={"request": request})
+        return paginator.get_paginated_response(serializer.data)
 
 
 class EmployeeApplicationsView(APIView):

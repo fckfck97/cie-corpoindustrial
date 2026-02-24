@@ -26,6 +26,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Pencil, Gift, QrCode, Search, Filter, X, Download, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getImageUrl } from '@/lib/utils';
+import { DEFAULT_PAGE_SIZE, buildPageQuery, getPageRange, parsePaginatedCollection } from '@/utils/pagination';
+import { PaginationControls } from '@/components/PaginationControls';
 
 type Product = {
   id: string;
@@ -41,6 +43,9 @@ type Product = {
 };
 
 type ProductsResponse = {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
   results?: {
     products?: Product[];
   };
@@ -51,6 +56,10 @@ export default function ProductsPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
 
   // QR
   const [qrOpen, setQrOpen] = useState(false);
@@ -61,11 +70,17 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
-  const loadProducts = async () => {
+  const loadProducts = async (page: number = 1) => {
     setLoading(true);
     try {
-      const data = await apiClient.get<ProductsResponse>('/product/list/');
-      setProducts(data?.results?.products || []);
+      const query = buildPageQuery({ page, pageSize: DEFAULT_PAGE_SIZE, pageParam: 'p' });
+      const data = await apiClient.get<ProductsResponse>(`/product/list/?${query}`);
+      const parsed = parsePaginatedCollection<Product>(data, (payload) => payload?.results?.products || []);
+      setProducts(parsed.items);
+      setTotalProducts(parsed.count);
+      setHasNextPage(Boolean(parsed.next));
+      setHasPreviousPage(Boolean(parsed.previous));
+      setCurrentPage(page);
     } catch (error: any) {
       toast.error(error?.message || 'No se pudo cargar productos');
     } finally {
@@ -74,7 +89,7 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    loadProducts();
+    loadProducts(1);
   }, []);
 
   const openEdit = (productId: string) => {
@@ -163,6 +178,13 @@ export default function ProductsPage() {
       toast.error('No se pudo copiar el enlace');
     }
   };
+
+  const pageRange = getPageRange({
+    page: currentPage,
+    pageSize: DEFAULT_PAGE_SIZE,
+    currentItems: products.length,
+    totalCount: totalProducts,
+  });
 
   return (
     <DashboardLayout>
@@ -287,8 +309,8 @@ export default function ProductsPage() {
             <CardDescription>
               {loading
                 ? 'Cargando...'
-                : `Total: ${filteredProducts.length} beneficio${
-                    filteredProducts.length !== 1 ? 's' : ''
+                : `Total: ${totalProducts} beneficio${
+                    totalProducts !== 1 ? 's' : ''
                   }`}
             </CardDescription>
           </CardHeader>
@@ -393,6 +415,23 @@ export default function ProductsPage() {
               </div>
             )}
           </CardContent>
+          {!loading && (
+            <CardContent className="pt-0">
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={pageRange.totalPages}
+                totalCount={totalProducts}
+                start={pageRange.start}
+                end={pageRange.end}
+                hasPrevious={hasPreviousPage}
+                hasNext={hasNextPage}
+                loading={loading}
+                itemLabel="beneficios"
+                onPrevious={() => loadProducts(currentPage - 1)}
+                onNext={() => loadProducts(currentPage + 1)}
+              />
+            </CardContent>
+          )}
         </Card>
 
         {/* QR */}

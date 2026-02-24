@@ -25,6 +25,7 @@ import { Search, Filter, X, MoreVertical, FileText, Eye, CreditCard } from 'luci
 import { getPaymentMethodLabel, getPaymentStatusLabel } from '@/lib/model-choice-labels';
 import { getImageUrl } from '@/lib/utils';
 import { toast } from 'sonner';
+import { reportUi } from '@/utils/report-ui';
 
 type PaymentInfo = {
   id: number;
@@ -118,7 +119,7 @@ export default function PaymentsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className={reportUi.headerRow}>
           <div>
             <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
               <CreditCard className="h-8 w-8 text-primary" />

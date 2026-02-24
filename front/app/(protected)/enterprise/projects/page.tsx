@@ -19,6 +19,8 @@ import { Briefcase, Search, MapPin, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { getImageUrl } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { DEFAULT_PAGE_SIZE, buildPageQuery, getPageRange, parsePaginatedCollection } from "@/utils/pagination";
+import { PaginationControls } from "@/components/PaginationControls";
 
 type Project = {
   id: string;
@@ -34,8 +36,11 @@ type Project = {
 };
 
 type ProjectsResponse = {
-  projects?: {
-    results?: Project[];
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
+  results?: {
+    projects?: Project[];
   };
 };
 
@@ -44,13 +49,27 @@ export default function EnterpriseProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalProjects, setTotalProjects] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
 
-  const loadProjects = async (search: string = "") => {
+  const loadProjects = async (search: string = "", page: number = 1) => {
     setLoading(true);
     try {
-      const qs = search ? `?search=${encodeURIComponent(search)}` : "";
-      const data = await apiClient.get<any>(`/api/projects-list/${qs}`);
-      setProjects(data?.results?.projects || []);
+      const query = buildPageQuery({
+        page,
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageParam: 'page',
+        extra: { search: search || undefined },
+      });
+      const data = await apiClient.get<ProjectsResponse>(`/api/projects-list/?${query}`);
+      const parsed = parsePaginatedCollection<Project>(data, (payload) => payload?.results?.projects || []);
+      setProjects(parsed.items);
+      setTotalProjects(parsed.count);
+      setHasNextPage(Boolean(parsed.next));
+      setHasPreviousPage(Boolean(parsed.previous));
+      setCurrentPage(page);
     } catch (error: any) {
       toast.error(error?.message || "No se pudo cargar los proyectos");
     } finally {
@@ -59,8 +78,15 @@ export default function EnterpriseProjectsPage() {
   };
 
   useEffect(() => {
-    loadProjects(searchTerm);
+    loadProjects(searchTerm, 1);
   }, [searchTerm]);
+
+  const pageRange = getPageRange({
+    page: currentPage,
+    pageSize: DEFAULT_PAGE_SIZE,
+    currentItems: projects.length,
+    totalCount: totalProjects,
+  });
 
   return (
     <DashboardLayout>
@@ -97,70 +123,90 @@ export default function EnterpriseProjectsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <Card
-                key={project.id}
-                className="overflow-hidden flex flex-col hover:shadow-md transition-shadow"
-              >
-                <div className="aspect-video w-full bg-muted">
-                  {getImageUrl(project.image) ? (
-                    <img
-                      src={getImageUrl(project.image)}
-                      alt={project.title}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-muted-foreground">
-                      Sin imagen
-                    </div>
-                  )}
-                </div>
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start gap-2 mb-2">
-                    <Badge
-                      variant="secondary"
-                      className="font-semibold text-primary bg-primary/10"
-                    >
-                      ${Number(project.amount || 0).toLocaleString()}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      Prioridad {project.priority}
-                    </Badge>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projects.map((project) => (
+                <Card
+                  key={project.id}
+                  className="overflow-hidden flex flex-col hover:shadow-md transition-shadow"
+                >
+                  <div className="aspect-video w-full bg-muted">
+                    {getImageUrl(project.image) ? (
+                      <img
+                        src={getImageUrl(project.image)}
+                        alt={project.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-muted-foreground">
+                        Sin imagen
+                      </div>
+                    )}
                   </div>
-                  <CardTitle
-                    className="line-clamp-2 text-lg hover:text-primary cursor-pointer transition-colors"
-                    onClick={() =>
-                      router.push(`/enterprise/projects/${project.id}`)
-                    }
-                  >
-                    {project.title}
-                  </CardTitle>
-                  <CardDescription className="flex items-center gap-1 mt-1">
-                    <MapPin className="h-3 w-3" /> {project.municipality},{" "}
-                    {project.department}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1">
-                  {project.description && (
-                    <div
-                      className="text-sm text-muted-foreground line-clamp-3 prose prose-sm"
-                      dangerouslySetInnerHTML={{ __html: project.description }}
-                    />
-                  )}
-                </CardContent>
-                <CardFooter className="pt-0 border-t p-4 mt-auto">
-                  <Button
-                    className="w-full gap-2"
-                    onClick={() =>
-                      router.push(`/enterprise/projects/${project.id}`)
-                    }
-                  >
-                    Ver Detalles <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start gap-2 mb-2">
+                      <Badge
+                        variant="secondary"
+                        className="font-semibold text-primary bg-primary/10"
+                      >
+                        ${Number(project.amount || 0).toLocaleString()}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        Prioridad {project.priority}
+                      </Badge>
+                    </div>
+                    <CardTitle
+                      className="line-clamp-2 text-lg hover:text-primary cursor-pointer transition-colors"
+                      onClick={() =>
+                        router.push(`/enterprise/projects/${project.id}`)
+                      }
+                    >
+                      {project.title}
+                    </CardTitle>
+                    <CardDescription className="flex items-center gap-1 mt-1">
+                      <MapPin className="h-3 w-3" /> {project.municipality},{" "}
+                      {project.department}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1">
+                    {project.description && (
+                      <div
+                        className="text-sm text-muted-foreground line-clamp-3 prose prose-sm"
+                        dangerouslySetInnerHTML={{ __html: project.description }}
+                      />
+                    )}
+                  </CardContent>
+                  <CardFooter className="pt-0 border-t p-4 mt-auto">
+                    <Button
+                      className="w-full gap-2"
+                      onClick={() =>
+                        router.push(`/enterprise/projects/${project.id}`)
+                      }
+                    >
+                      Ver Detalles <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+
+            <Card>
+              <CardContent className="pt-6">
+                <PaginationControls
+                  currentPage={currentPage}
+                  totalPages={pageRange.totalPages}
+                  totalCount={totalProjects}
+                  start={pageRange.start}
+                  end={pageRange.end}
+                  hasPrevious={hasPreviousPage}
+                  hasNext={hasNextPage}
+                  loading={loading}
+                  itemLabel="proyectos"
+                  onPrevious={() => loadProjects(searchTerm, currentPage - 1)}
+                  onNext={() => loadProjects(searchTerm, currentPage + 1)}
+                />
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>

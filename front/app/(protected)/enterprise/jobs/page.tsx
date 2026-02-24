@@ -36,6 +36,8 @@ import { Plus, MoreVertical, Pencil, Trash, Eye, Briefcase, Power, PowerOff, Sea
 import { toast } from 'sonner';
 import { getImageUrl } from '@/lib/utils';
 import { getJobPriorityLabel, getJobStatusLabel } from '@/lib/model-choice-labels';
+import { DEFAULT_PAGE_SIZE, buildPageQuery, getPageRange, parsePaginatedCollection } from '@/utils/pagination';
+import { PaginationControls } from '@/components/PaginationControls';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +63,9 @@ type Job = {
 };
 
 type JobsResponse = {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
   results?: {
     jobs?: Job[];
   };
@@ -70,6 +75,10 @@ export default function JobsPage() {
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
@@ -82,11 +91,17 @@ export default function JobsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
 
-  const loadJobs = async () => {
+  const loadJobs = async (page: number = 1) => {
     setLoading(true);
     try {
-      const data = await apiClient.get<JobsResponse>('/job/list/');
-      setJobs(data?.results?.jobs || []);
+      const query = buildPageQuery({ page, pageSize: DEFAULT_PAGE_SIZE, pageParam: 'p' });
+      const data = await apiClient.get<JobsResponse>(`/job/list/?${query}`);
+      const parsed = parsePaginatedCollection<Job>(data, (payload) => payload?.results?.jobs || []);
+      setJobs(parsed.items);
+      setTotalJobs(parsed.count);
+      setHasNextPage(Boolean(parsed.next));
+      setHasPreviousPage(Boolean(parsed.previous));
+      setCurrentPage(page);
     } catch (error: any) {
       toast.error(error?.message || 'No se pudo cargar empleos');
     } finally {
@@ -95,7 +110,7 @@ export default function JobsPage() {
   };
 
   useEffect(() => {
-    loadJobs();
+    loadJobs(1);
   }, []);
 
   const openEdit = (job: Job) => {
@@ -136,7 +151,7 @@ export default function JobsPage() {
       body.append('status', nextStatus);
       await apiClient.put(`/job/edit/${job.id}/`, body);
       toast.success(nextStatus === 'published' ? 'Oferta activada.' : 'Oferta desactivada.');
-      await loadJobs();
+      await loadJobs(currentPage);
     } catch (error: any) {
       toast.error(error?.message || 'No se pudo cambiar el estado de la oferta.');
     }
@@ -177,6 +192,12 @@ export default function JobsPage() {
   };
 
   const getApplicationsHref = (jobId: string) => `/enterprise/jobs/${jobId}/applications`;
+  const pageRange = getPageRange({
+    page: currentPage,
+    pageSize: DEFAULT_PAGE_SIZE,
+    currentItems: jobs.length,
+    totalCount: totalJobs,
+  });
 
   return (
     <DashboardLayout>
@@ -274,7 +295,7 @@ export default function JobsPage() {
 
             {searchTerm && (
               <div className="mt-2 text-sm text-muted-foreground">
-                Mostrando {filteredJobs.length} de {jobs.length} empleos
+                Mostrando {filteredJobs.length} de {jobs.length} en esta página · total {totalJobs}
               </div>
             )}
           </CardContent>
@@ -285,7 +306,7 @@ export default function JobsPage() {
           <CardHeader>
             <CardTitle>Listado de Empleos</CardTitle>
             <CardDescription>
-              {loading ? 'Cargando...' : `Total: ${filteredJobs.length} empleo${filteredJobs.length !== 1 ? 's' : ''}`}
+              {loading ? 'Cargando...' : `Total: ${totalJobs} empleo${totalJobs !== 1 ? 's' : ''}`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -416,6 +437,23 @@ export default function JobsPage() {
               </div>
             )}
           </CardContent>
+          {!loading && (
+            <CardContent className="pt-0">
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={pageRange.totalPages}
+                totalCount={totalJobs}
+                start={pageRange.start}
+                end={pageRange.end}
+                hasPrevious={hasPreviousPage}
+                hasNext={hasNextPage}
+                loading={loading}
+                itemLabel="empleos"
+                onPrevious={() => loadJobs(currentPage - 1)}
+                onNext={() => loadJobs(currentPage + 1)}
+              />
+            </CardContent>
+          )}
         </Card>
 
 

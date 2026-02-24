@@ -26,6 +26,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { reportUi } from '@/utils/report-ui';
 
 type Redemption = {
   id: string;
@@ -334,7 +335,7 @@ export default function AdminBenefitsRedemptionsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className={reportUi.headerRow}>
         <div>
           <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
             <Gift className="h-8 w-8 text-primary" />
@@ -344,12 +345,12 @@ export default function AdminBenefitsRedemptionsPage() {
             Control y análisis de redenciones por empresa
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={exportToExcel} variant="outline" size="sm" className="gap-2">
+        <div className={reportUi.actionsRow}>
+          <Button onClick={exportToExcel} variant="outline" size="sm" className={reportUi.exportButton}>
             <FileSpreadsheet className="h-4 w-4" />
             Excel
           </Button>
-          <Button onClick={exportToPDF} variant="outline" size="sm" className="gap-2">
+          <Button onClick={exportToPDF} variant="outline" size="sm" className={reportUi.exportButton}>
             <FileText className="h-4 w-4" />
             PDF
           </Button>

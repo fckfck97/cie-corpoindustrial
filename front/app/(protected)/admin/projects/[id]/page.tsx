@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 import { getImageUrl } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { reportUi } from "@/utils/report-ui";
 
 type Project = {
   id: string;
@@ -353,7 +354,7 @@ export default function AdminProjectDetailsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-2 border-green-600 text-green-600 hover:bg-green-50"
+                  className={reportUi.exportExcelButton}
                   onClick={exportToExcel}
                   disabled={applications.length === 0}
                 >
@@ -363,7 +364,7 @@ export default function AdminProjectDetailsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-2 border-red-600 text-red-600 hover:bg-red-50"
+                  className={reportUi.exportPdfButton}
                   onClick={exportToPDF}
                   disabled={applications.length === 0}
                 >
@@ -444,11 +445,11 @@ export default function AdminProjectDetailsPage() {
                   </ScrollArea>
 
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-between pt-4 border-t">
-                      <p className="text-sm text-muted-foreground mr-4">
+                    <div className={reportUi.paginationRow}>
+                      <p className={reportUi.paginationMeta}>
                         Mostrando página {currentPage} de {totalPages}
                       </p>
-                      <div className="flex items-center gap-2">
+                      <div className={reportUi.paginationButtons}>
                         <Button
                           variant="outline"
                           size="sm"

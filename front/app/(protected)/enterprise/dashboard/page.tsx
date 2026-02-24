@@ -11,20 +11,30 @@ import { Button } from '@/components/ui/button';
 import { Briefcase, Package, Users, Wallet, Gift, ArrowRight, AlertTriangle } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
 import { getJobStatusLabel } from '@/lib/model-choice-labels';
+import { buildPageQuery, parsePaginatedCollection } from '@/utils/pagination';
 
 type EmployeeListResponse = {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
   results?: {
     employees?: any[];
   };
 };
 
 type JobsResponse = {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
   results?: {
     jobs?: any[];
   };
 };
 
 type ProductsResponse = {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
   results?: {
     products?: any[];
   };
@@ -86,22 +96,26 @@ export default function EnterpriseDashboardPage() {
       setError('');
       try {
         const [employeesRes, jobsRes, productsRes, paymentsRes, redemptionsRes] = await Promise.all([
-          apiClient.get<EmployeeListResponse>('/employee/list/'),
-          apiClient.get<JobsResponse>('/job/list/'),
-          apiClient.get<ProductsResponse>('/product/list/'),
+          apiClient.get<EmployeeListResponse>(`/employee/list/?${buildPageQuery({ page: 1, pageParam: 'p', pageSize: 10 })}`),
+          apiClient.get<JobsResponse>(`/job/list/?${buildPageQuery({ page: 1, pageParam: 'p', pageSize: 10 })}`),
+          apiClient.get<ProductsResponse>(`/product/list/?${buildPageQuery({ page: 1, pageParam: 'p', pageSize: 10 })}`),
           apiClient.get<PaymentsResponse>('/billing/my-payments/'),
           apiClient.get<EnterpriseBenefitsRedemptionsResponse>('/enterprise/benefits/redemptions/'),
         ]);
 
-        const employeesItems = employeesRes?.results?.employees || [];
-        const jobsItems = jobsRes?.results?.jobs || [];
-        const productsItems = productsRes?.results?.products || [];
+        const employeesParsed = parsePaginatedCollection<any>(employeesRes, (payload) => payload?.results?.employees || []);
+        const jobsParsed = parsePaginatedCollection<any>(jobsRes, (payload) => payload?.results?.jobs || []);
+        const productsParsed = parsePaginatedCollection<any>(productsRes, (payload) => payload?.results?.products || []);
+
+        const employeesItems = employeesParsed.items;
+        const jobsItems = jobsParsed.items;
+        const productsItems = productsParsed.items;
 
         setJobs(jobsItems);
         setProducts(productsItems);
-        setEmployeesCount(employeesItems.length);
-        setJobsCount(jobsItems.length);
-        setProductsCount(productsItems.length);
+        setEmployeesCount(employeesParsed.count);
+        setJobsCount(jobsParsed.count);
+        setProductsCount(productsParsed.count);
 
         setPayments(paymentsRes?.summary || { total: 0, paid: 0, pending: 0, overdue: 0 });
         setPaymentsList(paymentsRes?.payments || []);
