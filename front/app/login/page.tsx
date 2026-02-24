@@ -5,7 +5,7 @@
  * OTP-based authentication flow
  */
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { OtpForm } from "@/components/OtpForm";
@@ -14,6 +14,20 @@ import { getPostLoginPath } from "@/lib/role-home";
 import Image from "next/image";
 
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center bg-background">
+          <div className="text-muted-foreground">Cargando...</div>
+        </div>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
