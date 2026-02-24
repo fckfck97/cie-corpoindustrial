@@ -35,9 +35,15 @@ class JobBoard(models.Model):
         return self.title
 
 class JobApplication(models.Model):
+    ORIGIN_CHOICES = (
+        ("interno", "Interno"),
+        ("externo", "Externo"),
+    )
+
     id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
     job = models.ForeignKey(JobBoard, related_name='applications', on_delete=models.CASCADE)
     applicant = models.ForeignKey(User, related_name='applications', on_delete=models.SET_NULL, null=True, blank=True)
+    origin = models.CharField(max_length=10, choices=ORIGIN_CHOICES, default="externo")
     
     full_name = models.CharField(max_length=255)
     email = models.EmailField()

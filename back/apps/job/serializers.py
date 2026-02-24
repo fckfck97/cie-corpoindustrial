@@ -116,6 +116,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'job',
             'job_title',
             'enterprise_name',
+            'origin',
             'applicant',
             'full_name',
             'email',

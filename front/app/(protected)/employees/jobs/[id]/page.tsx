@@ -211,6 +211,7 @@ export default function EmployeeJobDetailPage() {
     try {
       const formData = new FormData();
       if (jobId) formData.append("job", String(jobId));
+      formData.append("origin", "interno");
       formData.append("full_name", fullName);
       formData.append("email", email);
       if (phoneNormalized) formData.append("phone", phoneNormalized);

@@ -232,6 +232,7 @@ class ApplyJobView(APIView):
             )
 
         data['applicant'] = request.user.id
+        data['origin'] = 'interno'
         
         serializer = JobApplicationSerializer(data=data)
         if serializer.is_valid():
@@ -267,9 +268,12 @@ class EnterpriseApplicationsView(APIView):
              return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
         job_id = request.query_params.get("job")
+        origin = (request.query_params.get("origin") or "").strip().lower()
         applications = JobApplication.objects.filter(job__user=request.user).select_related("job")
         if job_id:
             applications = applications.filter(job_id=job_id)
+        if origin in {"interno", "externo"}:
+            applications = applications.filter(origin=origin)
 
         applications = applications.order_by('-created_at')
         paginator = SmallSetPagination()
@@ -286,9 +290,12 @@ class EmployeeApplicationsView(APIView):
              return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
         job_id = request.query_params.get("job")
+        origin = (request.query_params.get("origin") or "").strip().lower()
         applications = JobApplication.objects.filter(applicant=request.user).select_related("job", "job__user")
         if job_id:
             applications = applications.filter(job_id=job_id)
+        if origin in {"interno", "externo"}:
+            applications = applications.filter(origin=origin)
 
         applications = applications.order_by('-created_at')
         serializer = JobApplicationSerializer(applications, many=True, context={"request": request})
@@ -333,6 +340,8 @@ class PublicApplyJobView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        data['origin'] = 'externo'
+
         serializer = JobApplicationSerializer(data=data)
         if serializer.is_valid():
             application = serializer.save()
@@ -356,4 +365,3 @@ class PublicApplyJobView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
