@@ -86,7 +86,7 @@ export default function AdminCompaniesPage() {
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <Button asChild className="gap-2 ml-auto">
-            <Link href="/admin/companies/create">
+            <Link href="/administrador/companies/create">
               <Plus className="h-4 w-4" /> Crear Empresa
             </Link>
           </Button>
@@ -104,7 +104,7 @@ export default function AdminCompaniesPage() {
           <CardHeader>
             <CardDescription>Pagos empresas</CardDescription>
             <CardTitle>
-              <Button asChild variant="outline" className="gap-2"><Link href="/admin/payments"><Wallet className="h-4 w-4" />Ir a pagos</Link></Button>
+              <Button asChild variant="outline" className="gap-2"><Link href="/administrador/payments"><Wallet className="h-4 w-4" />Ir a pagos</Link></Button>
             </CardTitle>
           </CardHeader>
         </Card>
@@ -145,12 +145,12 @@ export default function AdminCompaniesPage() {
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-2">
                           <Button size="sm" variant="outline" asChild>
-                            <Link href={`/admin/payments?enterprise=${item.id}`}>
+                            <Link href={`/administrador/payments?enterprise=${item.id}`}>
                               <Wallet className="h-4 w-4" />
                             </Link>
                           </Button>
                           <Button size="sm" variant="outline" asChild>
-                            <Link href={`/admin/companies/${item.id}/edit`}>
+                            <Link href={`/administrador/companies/${item.id}/edit`}>
                               <Edit2 className="h-4 w-4" />
                             </Link>
                           </Button>

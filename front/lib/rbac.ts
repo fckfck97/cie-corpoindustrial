@@ -52,7 +52,7 @@ export function getAllowedRoutes(user: User | null): string[] {
 
   const baseRoutes = [
     user.role === 'admin'
-      ? '/admin/dashboard'
+      ? '/administrador/dashboard'
       : user.role === 'manager'
         ? '/enterprise/dashboard'
         : '/employees/dashboard',

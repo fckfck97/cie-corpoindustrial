@@ -88,7 +88,7 @@ export default function AdminProjectsPage() {
         <div className="flex flex-col sm:flex-row gap-2">
           <Button
             className="gap-2 ml-auto"
-            onClick={() => router.push("/admin/projects/create")}
+            onClick={() => router.push("/administrador/projects/create")}
           >
             <Plus className="h-4 w-4" />
             Crear Proyecto
@@ -183,7 +183,7 @@ export default function AdminProjectsPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
                               onClick={() =>
-                                router.push(`/admin/projects/${project.id}`)
+                                router.push(`/administrador/projects/${project.id}`)
                               }
                             >
                               <Eye className="mr-2 h-4 w-4" /> Ver Detalles

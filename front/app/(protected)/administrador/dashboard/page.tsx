@@ -101,7 +101,7 @@ export default function AdminDashboardPage() {
       icon: Users,
       borderClass: 'border-l-blue-500',
       iconClass: 'bg-blue-100 text-blue-600',
-      href: '/admin/companies',
+      href: '/administrador/companies',
     },
     {
       title: 'Pagos Mes Actual',
@@ -109,7 +109,7 @@ export default function AdminDashboardPage() {
       icon: Wallet,
       borderClass: 'border-l-emerald-500',
       iconClass: 'bg-emerald-100 text-emerald-600',
-      href: '/admin/payments',
+      href: '/administrador/payments',
     },
     {
       title: 'Vencidos Mes Actual',
@@ -117,7 +117,7 @@ export default function AdminDashboardPage() {
       icon: AlertTriangle,
       borderClass: 'border-l-red-500',
       iconClass: 'bg-red-100 text-red-600',
-      href: '/admin/payments',
+      href: '/administrador/payments',
     },
   ];
 

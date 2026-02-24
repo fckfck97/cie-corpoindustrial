@@ -247,7 +247,7 @@ export default function AdminCreateCompanyPage() {
 
       await apiClient.post("/employee/list/", formData);
       toast.success("Empresa creada con perfil empresarial.");
-      router.push("/admin/companies");
+      router.push("/administrador/companies");
     } catch (error: any) {
       toast.error(
         getFriendlyCreateError(
@@ -266,7 +266,7 @@ export default function AdminCreateCompanyPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => router.push('/admin/companies')}
+            onClick={() => router.push('/administrador/companies')}
             aria-label="Volver"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -559,7 +559,7 @@ export default function AdminCreateCompanyPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => (step === 1 ? router.push('/admin/companies') : setStep(1))}
+                  onClick={() => (step === 1 ? router.push('/administrador/companies') : setStep(1))}
                   disabled={submitting}
                 >
                   Cancelar

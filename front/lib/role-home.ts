@@ -4,7 +4,7 @@ export function getHomeByRole(user: User | null | undefined): string {
   if (!user) return '/login';
 
   const isAdmin = user.backendRole === 'Admin' || user.role === 'admin';
-  if (isAdmin) return '/admin/dashboard';
+  if (isAdmin) return '/administrador/dashboard';
 
   const isEnterprise = user.backendRole === 'enterprise' || user.role === 'manager';
   if (isEnterprise) return '/enterprise/dashboard';
@@ -16,7 +16,7 @@ export function canAccessPathByRole(user: User | null | undefined, path: string)
   if (!user) return false;
 
   const isAdmin = user.backendRole === 'Admin' || user.role === 'admin';
-  if (isAdmin) return path.startsWith('/admin');
+  if (isAdmin) return path.startsWith('/administrador');
 
   const isEnterprise = user.backendRole === 'enterprise' || user.role === 'manager';
   if (isEnterprise) return path.startsWith('/enterprise');

@@ -97,7 +97,7 @@ export default function AdminEnterprisePaymentsDetailPage() {
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link href="/admin/payments" className="inline-flex items-center gap-2">
+          <Link href="/administrador/payments" className="inline-flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
             Volver a pagos
           </Link>

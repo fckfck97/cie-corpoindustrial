@@ -225,7 +225,7 @@ export default function AdminEditCompanyPage() {
         }
       } catch (error: any) {
         toast.error(error?.message || "No se pudo cargar la empresa.");
-        router.push("/admin/companies");
+        router.push("/administrador/companies");
       } finally {
         setLoading(false);
       }
@@ -356,7 +356,7 @@ export default function AdminEditCompanyPage() {
       await apiClient.put(`/enterprise/profile/edit/${enterpriseId}/`, profilePayload);
 
       toast.success("Empresa actualizada correctamente.");
-      router.push("/admin/companies");
+      router.push("/administrador/companies");
     } catch (error: any) {
       const emailWasChanged = userForm.email.trim().toLowerCase() !== originalEmail;
       const phoneWasChanged = normalizePhone(userForm.phone.trim()) !== originalPhone;
@@ -390,7 +390,7 @@ export default function AdminEditCompanyPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => router.push('/admin/companies')}
+            onClick={() => router.push('/administrador/companies')}
             aria-label="Volver"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -627,7 +627,7 @@ export default function AdminEditCompanyPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => (step === 1 ? router.push('/admin/companies') : setStep(1))}
+                  onClick={() => (step === 1 ? router.push('/administrador/companies') : setStep(1))}
                   disabled={submitting}
                 >
                   Cancelar

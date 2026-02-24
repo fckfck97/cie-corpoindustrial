@@ -103,7 +103,7 @@ export default function AdminCreateProjectPage() {
 
       await apiClient.post("/api/projects/", body);
       toast.success("Proyecto creado con éxito");
-      router.push("/admin/projects");
+      router.push("/administrador/projects");
     } catch (err: any) {
       toast.error(err?.message || "Error al crear proyecto");
     } finally {

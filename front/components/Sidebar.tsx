@@ -64,7 +64,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   });
 
   const dashboardHref = isAdmin
-    ? "/admin/dashboard"
+    ? "/administrador/dashboard"
     : isEnterprise
       ? "/enterprise/dashboard"
       : "/employees/dashboard";
@@ -78,7 +78,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
     },
     {
       label: isAdmin ? "Empresas" : "Empleados",
-      href: isAdmin ? "/admin/companies" : "/enterprise/employees",
+      href: isAdmin ? "/administrador/companies" : "/enterprise/employees",
       icon: Users,
       visible: can("manage_employees"),
     },
@@ -120,19 +120,19 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
     },
     {
       label: "Pagos Empresas",
-      href: "/admin/payments",
+      href: "/administrador/payments",
       icon: Wallet,
       visible: isAdmin,
     },
     {
       label: "Canjes Beneficios",
-      href: "/admin/benefits/redemptions",
+      href: "/administrador/benefits/redemptions",
       icon: Package,
       visible: isAdmin,
     },
     {
       label: "Proyectos",
-      href: "/admin/projects",
+      href: "/administrador/projects",
       icon: Briefcase,
       visible: isAdmin,
     },

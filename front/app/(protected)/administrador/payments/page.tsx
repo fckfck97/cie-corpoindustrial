@@ -268,7 +268,7 @@ export default function AdminPaymentsPage() {
                         <div className="p-4">
                           <div className="mb-4 flex justify-end">
                             <Button asChild variant="outline" size="sm">
-                              <Link href={`/admin/payments/${row.enterprise.id}`}>Ver detalle completo</Link>
+                              <Link href={`/administrador/payments/${row.enterprise.id}`}>Ver detalle completo</Link>
                             </Button>
                           </div>
                           <div className="overflow-x-auto">
