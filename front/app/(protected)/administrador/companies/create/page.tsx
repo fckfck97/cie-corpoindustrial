@@ -41,6 +41,27 @@ const initialProfile = {
 };
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");
+type DocumentRule = { min: number; max: number; label: string };
+const DEFAULT_DOCUMENT_RULE: DocumentRule = { min: 5, max: 15, label: "Documento" };
+const DOCUMENT_RULES: Record<string, DocumentRule> = {
+  CC: { min: 6, max: 10, label: "Cédula" },
+  CE: { min: 6, max: 10, label: "Cédula de extranjería" },
+  TI: { min: 10, max: 11, label: "Tarjeta de identidad" },
+  RC: { min: 10, max: 11, label: "Registro civil" },
+  PE: { min: 6, max: 15, label: "Permiso especial" },
+  PT: { min: 6, max: 15, label: "Permiso temporal" },
+  PA: { min: 6, max: 15, label: "Pasaporte" },
+  PAS: { min: 6, max: 15, label: "Pasaporte" },
+  NIT: { min: 9, max: 10, label: "NIT" },
+};
+const getDocumentRule = (type?: string) => DOCUMENT_RULES[type || ""] || DEFAULT_DOCUMENT_RULE;
+const trimDocumentDigits = (value: string, type?: string) =>
+  onlyDigits(value).slice(0, getDocumentRule(type).max);
+const isDocumentLengthValid = (value: string, type?: string) => {
+  const digits = onlyDigits(value);
+  const rule = getDocumentRule(type);
+  return digits.length >= rule.min && digits.length <= rule.max;
+};
 const normalizePhone = (value: string) => {
   const digits = onlyDigits(value);
   if (digits.startsWith("57") && digits.length === 12) return digits.slice(2);
@@ -91,6 +112,8 @@ export default function AdminCreateCompanyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [userForm, setUserForm] = useState(initialUser);
   const [profileForm, setProfileForm] = useState(initialProfile);
+  const userDocRule = getDocumentRule(userForm.document_type);
+  const enterpriseDocRule = getDocumentRule(profileForm.document_type_enterprise);
 
   const stepOneValid = useMemo(() => {
     const emailTrim = userForm.email.trim().toLowerCase();
@@ -108,6 +131,7 @@ export default function AdminCreateCompanyPage() {
       !!enterpriseName &&
       !!documentType &&
       !!nuip &&
+      isDocumentLengthValid(nuip, documentType) &&
       !!phone &&
       isValidPhone(phone)
     );
@@ -119,7 +143,14 @@ export default function AdminCreateCompanyPage() {
     const niche = profileForm.niche.trim();
     const description = profileForm.description.trim();
     const address = profileForm.address.trim();
-    return !!enterpriseDocType && !!enterpriseNuip && !!niche && !!description && !!address;
+    return (
+      !!enterpriseDocType &&
+      !!enterpriseNuip &&
+      isDocumentLengthValid(enterpriseNuip, enterpriseDocType) &&
+      !!niche &&
+      !!description &&
+      !!address
+    );
   }, [profileForm]);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -157,6 +188,12 @@ export default function AdminCreateCompanyPage() {
         toast.error("El número de documento del representante es obligatorio.");
         return;
       }
+      if (!isDocumentLengthValid(nuip, documentType)) {
+        toast.error(
+          `${getDocumentRule(documentType).label}: ingresa entre ${getDocumentRule(documentType).min} y ${getDocumentRule(documentType).max} dígitos.`,
+        );
+        return;
+      }
       if (!phone || !isValidPhone(phone)) {
         toast.error("Teléfono inválido. Debe tener 10 dígitos e iniciar por 3.");
         return;
@@ -184,6 +221,12 @@ export default function AdminCreateCompanyPage() {
     }
     if (!enterpriseNuip) {
       toast.error("El NIT/NUIP de la empresa es obligatorio.");
+      return;
+    }
+    if (!isDocumentLengthValid(enterpriseNuip, enterpriseDocType)) {
+      toast.error(
+        `${getDocumentRule(enterpriseDocType).label}: ingresa entre ${getDocumentRule(enterpriseDocType).min} y ${getDocumentRule(enterpriseDocType).max} dígitos.`,
+      );
       return;
     }
     if (!niche) {
@@ -350,7 +393,11 @@ export default function AdminCreateCompanyPage() {
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={userForm.document_type}
                     onChange={(e) =>
-                      setUserForm((p) => ({ ...p, document_type: e.target.value }))
+                      setUserForm((p) => ({
+                        ...p,
+                        document_type: e.target.value,
+                        nuip: trimDocumentDigits(p.nuip, e.target.value),
+                      }))
                     }
                     required
                   >
@@ -370,11 +417,19 @@ export default function AdminCreateCompanyPage() {
                   <Input
                     value={userForm.nuip}
                     onChange={(e) =>
-                      setUserForm((p) => ({ ...p, nuip: onlyDigits(e.target.value) }))
+                      setUserForm((p) => ({
+                        ...p,
+                        nuip: trimDocumentDigits(e.target.value, p.document_type),
+                      }))
                     }
                     required
+                    inputMode="numeric"
+                    maxLength={userDocRule.max}
                     placeholder="1234567890"
                   />
+                  <p className={`text-xs ${userForm.nuip && !isDocumentLengthValid(userForm.nuip, userForm.document_type) ? "text-amber-600" : "text-muted-foreground"}`}>
+                    {userDocRule.label}: {onlyDigits(userForm.nuip).length} dígitos ingresados. Permitido: {userDocRule.min} a {userDocRule.max}.
+                  </p>
                 </div>
 
                 <div className="grid gap-2 md:col-span-2">
@@ -436,6 +491,7 @@ export default function AdminCreateCompanyPage() {
                       setProfileForm((p) => ({
                         ...p,
                         document_type_enterprise: e.target.value,
+                        nuip_enterprise: trimDocumentDigits(p.nuip_enterprise, e.target.value),
                       }))
                     }
                     required
@@ -455,13 +511,17 @@ export default function AdminCreateCompanyPage() {
                     onChange={(e) =>
                       setProfileForm((p) => ({
                         ...p,
-                        nuip_enterprise: onlyDigits(e.target.value),
+                        nuip_enterprise: trimDocumentDigits(e.target.value, p.document_type_enterprise),
                       }))
                     }
                     placeholder="900123456-7"
                     inputMode="numeric"
+                    maxLength={enterpriseDocRule.max}
                     required
                   />
+                  <p className={`text-xs ${profileForm.nuip_enterprise && !isDocumentLengthValid(profileForm.nuip_enterprise, profileForm.document_type_enterprise) ? "text-amber-600" : "text-muted-foreground"}`}>
+                    {enterpriseDocRule.label}: {onlyDigits(profileForm.nuip_enterprise).length} dígitos ingresados. Permitido: {enterpriseDocRule.min} a {enterpriseDocRule.max}.
+                  </p>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="niche">Sector Económico *</Label>

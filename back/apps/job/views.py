@@ -284,3 +284,59 @@ class EmployeeApplicationsView(APIView):
         applications = applications.order_by('-created_at')
         serializer = JobApplicationSerializer(applications, many=True, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@permission_classes([AllowAny])
+class PublicApplyJobView(APIView):
+    def post(self, request, *args, **kwargs):
+        data = request.data.copy()
+        job_id = data.get('job')
+
+        if not job_id:
+             return Response({'error': 'Job ID required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            job = JobBoard.objects.get(id=job_id)
+        except JobBoard.DoesNotExist:
+            return Response({'error': 'Job not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Validate dates
+        now = timezone.now()
+        if job.start_date and job.start_date > now:
+             return Response({'error': 'La convocatoria aún no ha iniciado'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if job.end_date and job.end_date < now:
+             return Response({'error': 'La convocatoria ha finalizado'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if email has already applied to this job (optional, but good practice to avoid spam)
+        email = data.get('email')
+        if email and JobApplication.objects.filter(job=job, email=email).exists():
+            return Response(
+                {'error': 'Ya existe una postulación con este correo para esta vacante.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = JobApplicationSerializer(data=data)
+        if serializer.is_valid():
+            application = serializer.save()
+            
+            # Send Email Notification to Enterprise
+            try:
+                subject = f'Nueva postulación: {job.title}'
+                message = f'Hola,\n\nHas recibido una nueva postulación para la oferta "{job.title}".\n\nCandidato: {application.full_name}\nEmail: {application.email}\n\nRevisa tu panel para ver el CV adjunto.'
+                recipient = job.user.email
+                if recipient:
+                    send_mail(
+                        subject,
+                        message,
+                        settings.DEFAULT_FROM_EMAIL,
+                        [recipient],
+                        fail_silently=True,
+                    )
+            except Exception as e:
+                print(f"Error sending email: {e}")
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+

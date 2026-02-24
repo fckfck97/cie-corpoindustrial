@@ -6,6 +6,7 @@ from .views import (
     ApplyJobView,
     EnterpriseApplicationsView,
     EmployeeApplicationsView,
+    PublicApplyJobView,
 )
 from django.urls import path
 
@@ -17,8 +18,12 @@ urlpatterns = [
     
     path('api/job/dashboard/', JobDashboardView.as_view(), name='jobboard-dashboard'),
 
+    #web corpo industrial libres 
     path('api/job/main/', JobMainView.as_view(), name='jobboard-main'),
     path('api/job/main/<uuid:pk>/', JobMainView.as_view(), name='jobboard-main-detail'),
+    path('api/public/apply/', PublicApplyJobView.as_view(), name='public-apply'),
+    
+    
     path('api/employee/jobs/', EmployeeJobsListView.as_view(), name='employee-jobs'),
     
     # Applications
