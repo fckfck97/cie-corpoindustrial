@@ -17,6 +17,13 @@ export function useData<T>(
   const [loading, setLoading] = useState(!options?.skip);
   const [error, setError] = useState<Error | null>(null);
 
+  const normalizeEndpoint = (value: string) => {
+    if (/^https?:\/\//i.test(value)) return value;
+    if (value.startsWith('/authentication/')) return value;
+    if (value.startsWith('/api/')) return value;
+    return value.startsWith('/') ? `/api${value}` : `/api/${value}`;
+  };
+
   useEffect(() => {
     if (options?.skip) return;
 
@@ -26,7 +33,9 @@ export function useData<T>(
         setError(null);
 
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}${endpoint}`,
+          /^https?:\/\//i.test(endpoint)
+            ? normalizeEndpoint(endpoint)
+            : `${process.env.NEXT_PUBLIC_API_URL}${normalizeEndpoint(endpoint)}`,
           {
             headers: {
               Authorization: `JWT ${

@@ -26,6 +26,20 @@ class ApiClient {
     this.timeout = timeout;
   }
 
+  private normalizeEndpoint(endpoint: string): string {
+    if (/^https?:\/\//i.test(endpoint)) return endpoint;
+    if (endpoint.startsWith('/authentication/')) return endpoint;
+    if (endpoint.startsWith('/api/')) return endpoint;
+    if (endpoint.startsWith('/')) return `/api${endpoint}`;
+    return `/api/${endpoint}`;
+  }
+
+  private buildUrl(endpoint: string): string {
+    const normalizedEndpoint = this.normalizeEndpoint(endpoint);
+    if (/^https?:\/\//i.test(normalizedEndpoint)) return normalizedEndpoint;
+    return `${this.baseUrl}${normalizedEndpoint}`;
+  }
+
   private getAuthToken(): string | null {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(config.auth.tokenKey);
@@ -159,7 +173,7 @@ class ApiClient {
   }
 
   async get<T = any>(endpoint: string, options?: RequestOptions): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = this.buildUrl(endpoint);
     console.log('[v0] GET:', url);
 
     const response = await this.fetchWithTimeout(url, {
@@ -175,7 +189,7 @@ class ApiClient {
     data?: any,
     options?: RequestOptions
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = this.buildUrl(endpoint);
     console.log('[v0] POST:', url, data);
 
     const body =
@@ -198,7 +212,7 @@ class ApiClient {
     data?: any,
     options?: RequestOptions
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = this.buildUrl(endpoint);
     console.log('[v0] PUT:', url, data);
 
     const body =
@@ -221,7 +235,7 @@ class ApiClient {
     data?: any,
     options?: RequestOptions
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = this.buildUrl(endpoint);
     console.log('[v0] PATCH:', url, data);
 
     const body =
@@ -240,7 +254,7 @@ class ApiClient {
   }
 
   async delete<T = any>(endpoint: string, options?: RequestOptions): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = this.buildUrl(endpoint);
     console.log('[v0] DELETE:', url);
 
     const response = await this.fetchWithTimeout(url, {
