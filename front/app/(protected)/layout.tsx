@@ -5,6 +5,7 @@
  * Wraps all protected pages with auth check and redirect logic
  */
 
+import { Suspense } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { SessionLoader } from '@/components/SessionLoader';
 import { redirect, usePathname, useSearchParams } from 'next/navigation';
@@ -14,6 +15,14 @@ interface ProtectedLayoutProps {
 }
 
 export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
+  return (
+    <Suspense fallback={<SessionLoader />}>
+      <ProtectedLayoutContent>{children}</ProtectedLayoutContent>
+    </Suspense>
+  );
+}
+
+function ProtectedLayoutContent({ children }: ProtectedLayoutProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
