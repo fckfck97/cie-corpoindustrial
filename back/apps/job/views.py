@@ -216,9 +216,18 @@ class ApplyJobView(APIView):
         if job.end_date and job.end_date < now:
              return Response({'error': 'La convocatoria ha finalizado'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # prevent duplicate applications by the same user
         if JobApplication.objects.filter(job=job, applicant=request.user).exists():
             return Response(
                 {'error': 'Ya te postulaste a esta vacante.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # also prevent duplicate phone number submissions for the same job
+        phone = data.get('phone')
+        if phone and JobApplication.objects.filter(job=job, phone=phone).exists():
+            return Response(
+                {'error': 'Ya existe una postulación para este empleo con el mismo número de teléfono.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -313,6 +322,14 @@ class PublicApplyJobView(APIView):
         if email and JobApplication.objects.filter(job=job, email=email).exists():
             return Response(
                 {'error': 'Ya existe una postulación con este correo para esta vacante.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # prevent duplicate phone number submissions for the same job
+        phone = data.get('phone')
+        if phone and JobApplication.objects.filter(job=job, phone=phone).exists():
+            return Response(
+                {'error': 'Ya existe una postulación para este empleo con el mismo número de teléfono.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
