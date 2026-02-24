@@ -237,7 +237,7 @@ class ApplyJobView(APIView):
                     send_mail(
                         subject,
                         message,
-                        getattr(settings, "EMAIL_HOST_USER", None) or settings.DEFAULT_FROM_EMAIL,
+                        settings.DEFAULT_FROM_EMAIL,
                         [recipient],
                         fail_silently=True,
                     )

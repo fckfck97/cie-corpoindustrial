@@ -269,9 +269,7 @@ EMAIL_PORT = int(os.environ.get('EMAIL_PORT'))
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS').lower() in ('true', '1', 'yes')
-# Algunos proveedores SMTP solo permiten enviar con el buzón autenticado.
-DEFAULT_FROM_EMAIL = os.environ.get('EMAIL_HOST_USER') or os.environ.get('DEFAULT_FROM_EMAIL')
-SERVER_EMAIL = DEFAULT_FROM_EMAIL
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 
 UNFOLD = {
     "SITE_TITLE": "CIE Admin",

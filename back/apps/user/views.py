@@ -1303,10 +1303,7 @@ class EnterprisePaymentDelinquencyNotificationsView(APIView):
                         send_mail(
                             subject=template["subject"],
                             message=template["email"],
-                            from_email=(
-                                getattr(settings, "EMAIL_HOST_USER", None)
-                                or getattr(settings, "DEFAULT_FROM_EMAIL", None)
-                            ),
+                            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
                             recipient_list=[email],
                             fail_silently=False,
                         )
@@ -1502,7 +1499,7 @@ class OTPLoginRequestWebView(APIView):
             send_mail(
                 subject="Código de acceso",
                 message=f"Tu código es: {otp.code}",
-                from_email=getattr(settings, "EMAIL_HOST_USER", None) or settings.DEFAULT_FROM_EMAIL,
+                from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[email_norm],
                 fail_silently=False,
             )
