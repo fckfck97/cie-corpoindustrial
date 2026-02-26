@@ -18,6 +18,25 @@ from django.db.models import Q, Count
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
+from django.core.files import File
+from concurrent.futures import ThreadPoolExecutor
+import threading
+import tempfile
+import os
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Bounded in-process queue to avoid unbounded thread/task growth under load.
+PUBLIC_APPLY_MAX_WORKERS = 2
+PUBLIC_APPLY_MAX_QUEUE = 8
+_public_apply_executor = ThreadPoolExecutor(
+    max_workers=PUBLIC_APPLY_MAX_WORKERS,
+    thread_name_prefix="public-apply",
+)
+_public_apply_slots = threading.BoundedSemaphore(
+    value=PUBLIC_APPLY_MAX_WORKERS + PUBLIC_APPLY_MAX_QUEUE
+)
 
 def active_jobs_queryset(queryset):
     now = timezone.now()
@@ -26,6 +45,82 @@ def active_jobs_queryset(queryset):
         Q(end_date__isnull=True) | Q(end_date__gte=now),
         status="published",
     )
+
+
+def _send_job_application_notification(job, application):
+    try:
+        subject = f'Nueva postulación: {job.title}'
+        message = (
+            f'Hola,\n\nHas recibido una nueva postulación para la oferta "{job.title}".\n\n'
+            f'Candidato: {application.full_name}\nEmail: {application.email}\n\n'
+            'Revisa tu panel para ver el CV adjunto.'
+        )
+        recipient = job.user.email
+        if recipient:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [recipient],
+                fail_silently=True,
+            )
+    except Exception:
+        logger.exception("Error sending job application notification")
+
+
+def _enqueue_public_application(*, payload, temp_cv_path, original_cv_name):
+    if not _public_apply_slots.acquire(blocking=False):
+        return False
+
+    def _task():
+        try:
+            job = JobBoard.objects.get(id=payload["job"])
+
+            # Re-check duplicates in background to reduce race conditions.
+            email = payload.get("email")
+            if email and JobApplication.objects.filter(job=job, email=email).exists():
+                return
+
+            phone = payload.get("phone")
+            if phone and JobApplication.objects.filter(job=job, phone=phone).exists():
+                return
+
+            with open(temp_cv_path, "rb") as cv_fp:
+                serializer_data = {
+                    "job": payload["job"],
+                    "full_name": payload["full_name"],
+                    "email": payload["email"],
+                    "phone": payload.get("phone"),
+                    "cover_letter": payload.get("cover_letter"),
+                    "origin": "externo",
+                    "cv": File(cv_fp, name=original_cv_name or os.path.basename(temp_cv_path)),
+                }
+                serializer = JobApplicationSerializer(data=serializer_data)
+                if not serializer.is_valid():
+                    logger.warning(
+                        "Public apply async validation failed: %s",
+                        serializer.errors,
+                    )
+                    return
+                application = serializer.save(origin="externo")
+                _send_job_application_notification(job, application)
+        except Exception:
+            logger.exception("Public apply async processing failed")
+        finally:
+            try:
+                if os.path.exists(temp_cv_path):
+                    os.remove(temp_cv_path)
+            except Exception:
+                logger.exception("Failed to delete temp CV file: %s", temp_cv_path)
+            _public_apply_slots.release()
+
+    try:
+        _public_apply_executor.submit(_task)
+        return True
+    except Exception:
+        _public_apply_slots.release()
+        logger.exception("Failed to enqueue public apply task")
+        return False
 
 class JobBoardView(APIView):
     serializer_class = JobBoardSerializer
@@ -341,26 +436,58 @@ class PublicApplyJobView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer = JobApplicationSerializer(data=data)
-        if serializer.is_valid():
-            application = serializer.save(origin='externo')
-            
-            # Send Email Notification to Enterprise
-            try:
-                subject = f'Nueva postulación: {job.title}'
-                message = f'Hola,\n\nHas recibido una nueva postulación para la oferta "{job.title}".\n\nCandidato: {application.full_name}\nEmail: {application.email}\n\nRevisa tu panel para ver el CV adjunto.'
-                recipient = job.user.email
-                if recipient:
-                    send_mail(
-                        subject,
-                        message,
-                        settings.DEFAULT_FROM_EMAIL,
-                        [recipient],
-                        fail_silently=True,
-                    )
-            except Exception as e:
-                print(f"Error sending email: {e}")
+        full_name = (data.get("full_name") or "").strip()
+        email = (data.get("email") or "").strip()
+        cv = request.FILES.get("cv")
 
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not full_name:
+            return Response({"full_name": ["Este campo es obligatorio."]}, status=status.HTTP_400_BAD_REQUEST)
+        if not email:
+            return Response({"email": ["Este campo es obligatorio."]}, status=status.HTTP_400_BAD_REQUEST)
+        if not cv:
+            return Response({"cv": ["Este campo es obligatorio."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        suffix = os.path.splitext(getattr(cv, "name", "") or "")[1] or ".bin"
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix, prefix="public-apply-", dir=tempfile.gettempdir())
+        temp_cv_path = temp_file.name
+        try:
+            for chunk in cv.chunks():
+                temp_file.write(chunk)
+        finally:
+            temp_file.close()
+
+        payload = {
+            "job": str(job.id),
+            "full_name": full_name,
+            "email": email,
+            "phone": (data.get("phone") or "").strip() or None,
+            "cover_letter": (data.get("cover_letter") or "").strip() or None,
+        }
+
+        queued = _enqueue_public_application(
+            payload=payload,
+            temp_cv_path=temp_cv_path,
+            original_cv_name=getattr(cv, "name", None),
+        )
+        if not queued:
+            try:
+                os.remove(temp_cv_path)
+            except OSError:
+                pass
+            return Response(
+                {"error": "El sistema está procesando muchas postulaciones. Intenta nuevamente en unos minutos."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        return Response(
+            {
+                "message": "Postulación recibida y en procesamiento.",
+                "status": "processing",
+                "origin": "externo",
+                "job": str(job.id),
+                "full_name": full_name,
+                "email": email,
+                "phone": payload["phone"],
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
