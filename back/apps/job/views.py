@@ -201,7 +201,7 @@ class ApplyJobView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        data = request.data.copy()
+        data = request.data
         job_id = data.get('job')
         
         if not job_id:
@@ -235,9 +235,6 @@ class ApplyJobView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        data['applicant'] = request.user.id
-        data['origin'] = 'interno'
-        
         serializer = JobApplicationSerializer(data=data)
         if serializer.is_valid():
             application = serializer.save(applicant=request.user, origin='interno')
@@ -309,7 +306,7 @@ class EmployeeApplicationsView(APIView):
 @permission_classes([AllowAny])
 class PublicApplyJobView(APIView):
     def post(self, request, *args, **kwargs):
-        data = request.data.copy()
+        data = request.data
         job_id = data.get('job')
 
         if not job_id:
@@ -343,8 +340,6 @@ class PublicApplyJobView(APIView):
                 {'error': 'Ya existe una postulación para este empleo con el mismo número de teléfono.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        data['origin'] = 'externo'
 
         serializer = JobApplicationSerializer(data=data)
         if serializer.is_valid():
