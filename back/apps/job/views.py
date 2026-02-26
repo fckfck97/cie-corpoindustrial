@@ -19,6 +19,14 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
 
+def active_jobs_queryset(queryset):
+    now = timezone.now()
+    return queryset.filter(
+        Q(start_date__isnull=True) | Q(start_date__lte=now),
+        Q(end_date__isnull=True) | Q(end_date__gte=now),
+        status="published",
+    )
+
 class JobBoardView(APIView):
     serializer_class = JobBoardSerializer
 
@@ -119,8 +127,7 @@ class JobDashboardView(APIView):
 
     def get(self, request, *args, **kwargs):
         if JobBoard.objects.all().exists():
-            jobboard = JobBoard.objects.filter(
-                status="published").order_by('-created')
+            jobboard = active_jobs_queryset(JobBoard.objects.all()).order_by('-created')
             paginator = JobSetPagination()
             results = paginator.paginate_queryset(jobboard, request)
             serializer = self.serializer_class(results, many=True)
@@ -133,8 +140,7 @@ class JobMainView(APIView):
     serializer_class = JobDashboardSerializer
     def get_object(self, pk):
         try:
-            if JobBoard.objects.get(pk=pk):
-                return JobBoard.objects.get(pk=pk)
+            return active_jobs_queryset(JobBoard.objects.all()).get(pk=pk)
         except JobBoard.DoesNotExist:
             raise NotFound('JobBoard not found')
 
@@ -144,8 +150,7 @@ class JobMainView(APIView):
             serializer = JobBoardEmployeesSerializer(jobboard)
             return Response({'job': serializer.data})
         else:
-            jobboard = JobBoard.objects.filter(
-                status="published").order_by('-created')
+            jobboard = active_jobs_queryset(JobBoard.objects.all()).order_by('-created')
             paginator = JobSetPagination()
             results = paginator.paginate_queryset(jobboard, request)
             serializer = self.serializer_class(results, many=True)
@@ -165,11 +170,10 @@ class EmployeeJobsListView(APIView):
 
         search = (request.query_params.get("search") or "").strip()
         jobs = (
-            JobBoard.objects.filter(
-                status="published",
+            active_jobs_queryset(JobBoard.objects.filter(
                 user__role="enterprise",
                 user__is_active=True,
-            )
+            ))
             .select_related("user")
             .annotate(applications_count=Count('applications'))
             .order_by("-created")
@@ -236,7 +240,7 @@ class ApplyJobView(APIView):
         
         serializer = JobApplicationSerializer(data=data)
         if serializer.is_valid():
-            application = serializer.save()
+            application = serializer.save(applicant=request.user, origin='interno')
             
             # Send Email Notification to Enterprise
             try:
@@ -344,7 +348,7 @@ class PublicApplyJobView(APIView):
 
         serializer = JobApplicationSerializer(data=data)
         if serializer.is_valid():
-            application = serializer.save()
+            application = serializer.save(origin='externo')
             
             # Send Email Notification to Enterprise
             try:

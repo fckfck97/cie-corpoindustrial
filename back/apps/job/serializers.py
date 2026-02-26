@@ -126,6 +126,15 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'cover_letter',
             'created_at',
         ]
+        extra_kwargs = {
+            "origin": {"required": False},
+        }
+
+    def create(self, validated_data):
+        # Prevent NULL origin values when clients omit or send an empty value.
+        if not validated_data.get("origin"):
+            validated_data["origin"] = "externo"
+        return super().create(validated_data)
 
     def get_enterprise_name(self, obj):
         if not obj.job or not obj.job.user:
