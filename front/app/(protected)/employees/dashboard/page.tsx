@@ -7,7 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, Gift, Building2, ArrowRight, MapPin, Clock } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Briefcase, Gift, Building2, ArrowRight, MapPin, Clock, RotateCcw } from 'lucide-react';
 import { getJobPriorityLabel } from '@/lib/model-choice-labels';
 import { getImageUrl } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,6 +18,8 @@ export default function EmployeesDashboardPage() {
   const [data, setData] = useState<EmployeePortalResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cardOpen, setCardOpen] = useState(false);
+  const [cardFlipped, setCardFlipped] = useState(false);
 
   useEffect(() => {
     const isEmployee = user?.backendRole === 'employees' || user?.role === 'employee';
@@ -49,13 +52,34 @@ export default function EmployeesDashboardPage() {
      return <div className="py-20 text-center text-red-500">{error}</div>;
   }
 
+  const linkedEnterprise = data?.linked_enterprise || null;
+  const employeeName = user?.name || 'Empleado';
+  const employeeDocument = user?.nuip || 'Sin documento';
+  const enterpriseName = linkedEnterprise?.name || user?.enterprise || 'Empresa asociada';
+  const enterpriseLogo = getImageUrl(linkedEnterprise?.avatar || '');
+  const enterpriseAddress = linkedEnterprise?.address || 'Sin dirección registrada';
+  const enterprisePhone = linkedEnterprise?.phone || 'Sin teléfono registrado';
+  const enterpriseEmail = linkedEnterprise?.email || 'Sin correo registrado';
+
   return (
     <div className="space-y-10 pb-10">
-      <div className="flex flex-col gap-2 border-b pb-6">
-        <h1 className="text-4xl font-black tracking-tight text-primary">Hola, {user?.name || 'Bienvenido'}</h1>
-        <p className="text-lg text-muted-foreground">
-          Resumen de tu actividad y oportunidades recientes.
-        </p>
+      <div className="flex flex-col gap-4 border-b pb-6 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-4xl font-black tracking-tight text-primary">Hola, {user?.name || 'Bienvenido'}</h1>
+          <p className="text-lg text-muted-foreground">
+            Resumen de tu actividad y oportunidades recientes.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setCardFlipped(false);
+            setCardOpen(true);
+          }}
+        >
+          Ver tarjeta
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -204,6 +228,80 @@ export default function EmployeesDashboardPage() {
             )}
         </div>
       </div>
+
+      <Dialog open={cardOpen} onOpenChange={setCardOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Tarjeta de empleado</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div
+              className="mx-auto w-full max-w-md cursor-pointer [perspective:1200px]"
+              onClick={() => setCardFlipped((prev) => !prev)}
+              role="button"
+              aria-label="Girar tarjeta"
+            >
+              <div className={`relative aspect-[1.586/1] w-full transition-transform duration-700 [transform-style:preserve-3d] ${cardFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
+                <div className="absolute inset-0 overflow-hidden rounded-2xl [backface-visibility:hidden]">
+                  <img
+                    src="/card/cie-card-front.jpg"
+                    alt="Tarjeta frontal"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+
+                <div className="absolute inset-0 overflow-hidden rounded-2xl [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                  <img
+                    src="/card/cie-card-back.jpg"
+                    alt="Tarjeta reverso"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 text-white">
+                    <div className="absolute inset-x-0 top-0 h-[44%] bg-slate-500/84" />
+                    <div className="absolute inset-x-0 top-[44%] h-[7%] bg-gradient-to-r from-amber-900/80 via-amber-500/55 to-amber-900/80" />
+                    <div className="absolute inset-x-0 bottom-0 h-[49%] bg-black/68" />
+
+                    <div className="relative z-10 h-full p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] uppercase tracking-[0.14em] text-white/80">Empresa</p>
+                          <p className="line-clamp-1 text-[23px] font-bold leading-tight">{enterpriseName}</p>
+                        </div>
+                        {enterpriseLogo ? (
+                          <div className="rounded-xl bg-white p-1.5 shadow-md">
+                            <img
+                              src={enterpriseLogo}
+                              alt={enterpriseName}
+                              className="h-10 w-10 rounded-md object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-xs font-bold text-black shadow-md">
+                            {enterpriseName.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-3 space-y-1.5 text-base leading-tight">
+                        <p><span className="text-white/75">Empleado:</span> {employeeName}</p>
+                        <p><span className="text-white/75">Documento:</span> {employeeDocument}</p>
+                        <p><span className="text-white/75">Correo:</span> {enterpriseEmail}</p>
+                        <p><span className="text-white/75">Tel:</span> {enterprisePhone}</p>
+                        <p className="line-clamp-2"><span className="text-white/75">Dirección:</span> {enterpriseAddress}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-center text-xs text-muted-foreground animate-pulse">
+              Haz click sobre la tarjeta para girarla
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

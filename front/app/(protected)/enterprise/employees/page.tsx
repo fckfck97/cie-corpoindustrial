@@ -19,11 +19,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 
 import { Plus, Trash2, Pencil, Search, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { getBackendRoleLabel } from '@/lib/model-choice-labels';
+import { DOCUMENT_TYPE_OPTIONS, getDocumentTypeLabel } from '@/lib/model-choice-labels';
 import { DEFAULT_PAGE_SIZE, buildPageQuery, getPageRange, parsePaginatedCollection } from '@/utils/pagination';
 import { PaginationControls } from '@/components/PaginationControls';
 
@@ -376,8 +375,6 @@ export default function EnterpriseEmployeesPage() {
                       <th className="p-3 font-semibold">Correo</th>
                       <th className="p-3 font-semibold">Teléfono</th>
                       <th className="p-3 font-semibold">Documento</th>
-                      <th className="p-3 font-semibold">Empresa</th>
-                      <th className="p-3 font-semibold">Rol</th>
                       <th className="p-3 text-right font-semibold">Acciones</th>
                     </tr>
                   </thead>
@@ -397,17 +394,8 @@ export default function EnterpriseEmployeesPage() {
                         <td className="p-3 text-muted-foreground">{item.phone || '-'}</td>
 
                         <td className="p-3 text-muted-foreground">
-                          {item.document_type || '-'} {item.nuip ? `- ${item.nuip}` : ''}
+                          {getDocumentTypeLabel(item.document_type)} {item.nuip ? `- ${item.nuip}` : ''}
                         </td>
-
-                        <td className="p-3">
-                          <Badge variant="secondary">{item.enterprise || 'N/D'}</Badge>
-                        </td>
-
-                        <td className="p-3">
-                          <Badge variant="outline">{getBackendRoleLabel(item.role)}</Badge>
-                        </td>
-
                         <td className="p-3 text-right">
                           <div className="flex justify-end gap-1">
                             <Button
@@ -533,13 +521,11 @@ export default function EnterpriseEmployeesPage() {
                   value={editForm.document_type}
                   onChange={(e) => setEditForm((p) => ({ ...p, document_type: e.target.value }))}
                 >
-                  <option value="CC">CC</option>
-                  <option value="CE">CE</option>
-                  <option value="PA">Pasaporte</option>
-                  <option value="TI">TI</option>
-                  <option value="RC">RC</option>
-                  <option value="PE">PE</option>
-                  <option value="PT">PT</option>
+                  {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 

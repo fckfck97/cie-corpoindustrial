@@ -195,7 +195,7 @@ export default function ProductsPage() {
             <div>
               <h1 className="flex items-center gap-2 text-3xl font-black tracking-tight">
                 <Gift className="h-8 w-8 text-primary" />
-                Productos y Beneficios
+                Beneficios
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 Administra el catálogo de beneficios de tu empresa

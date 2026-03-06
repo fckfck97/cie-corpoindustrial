@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { DOCUMENT_TYPE_OPTIONS } from '@/lib/model-choice-labels';
 
 type BackendUser = {
   id: string;
@@ -33,16 +34,6 @@ const emptyForm = {
   document_type: '',
   nuip: '', // solo dígitos
 };
-
-const DOC_TYPES = [
-  { value: 'CC', label: 'CC' },
-  { value: 'CE', label: 'CE' },
-  { value: 'PA', label: 'Pasaporte' },
-  { value: 'TI', label: 'TI' },
-  { value: 'RC', label: 'RC' },
-  { value: 'PE', label: 'PE' },
-  { value: 'PT', label: 'PT' },
-] as const;
 
 // Helpers
 const onlyDigits = (s: string) => s.replace(/\D/g, '');
@@ -237,7 +228,7 @@ export default function CreateEmployeePage() {
                       required
                     >
                       <option value="">Seleccione un tipo de documento</option>
-                      {DOC_TYPES.map((d) => (
+                      {DOCUMENT_TYPE_OPTIONS.map((d) => (
                         <option key={d.value} value={d.value}>
                           {d.label}
                         </option>

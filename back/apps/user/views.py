@@ -605,10 +605,29 @@ class EmployeeDashboardView(APIView):
             context={"request": request},
         )
 
+        linked_enterprise = None
+        employee_enterprise_name = (request.user.enterprise or "").strip()
+        if employee_enterprise_name:
+            linked_enterprise = enterprises.filter(
+                enterprise__iexact=employee_enterprise_name
+            ).first()
+            if linked_enterprise is None:
+                linked_enterprise = enterprises.filter(
+                    username__iexact=employee_enterprise_name
+                ).first()
+
         payload = {
             "enterprises": enterprise_serializer.data,
             "jobs": jobs_serializer.data,
             "benefits": benefits_serializer.data,
+            "linked_enterprise": (
+                EmployeeEnterpriseListSerializer(
+                    linked_enterprise,
+                    context={"request": request},
+                ).data
+                if linked_enterprise is not None
+                else None
+            ),
             "meta": {
                 "total_enterprises": enterprises.count(),
                 "total_jobs": JobBoard.objects.filter(

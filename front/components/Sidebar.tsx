@@ -89,10 +89,16 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       visible: isEnterprise,
     },
     {
-      label: "Productos",
+      label: "Beneficios",
       href: "/enterprise/products",
       icon: Package,
       visible: isEnterprise,
+    },
+    {
+      label: "Beneficios de Empresas",
+      href: "/administrador/products",
+      icon: Package,
+      visible: isAdmin,
     },
     {
       label: "Empleos",
@@ -131,14 +137,26 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       visible: isAdmin,
     },
     {
-      label: "Proyectos",
+      label: "Bolsa de negocios Amigos Corpoindustrial",
       href: "/administrador/projects",
       icon: Briefcase,
       visible: isAdmin,
     },
     {
-      label: "Proyectos",
+      label: "Oportunidad Licitaciones",
+      href: "/administrador/licitations",
+      icon: Briefcase,
+      visible: isAdmin,
+    },
+    {
+      label: "Bolsa de negocios Amigos Corpoindustrial",
       href: "/enterprise/projects",
+      icon: Briefcase,
+      visible: isEnterprise,
+    },
+    {
+      label: "Oportunidad Licitaciones",
+      href: "/enterprise/licitations",
       icon: Briefcase,
       visible: isEnterprise,
     },

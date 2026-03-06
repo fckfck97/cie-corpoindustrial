@@ -14,13 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Save, MapPin, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,10 +42,9 @@ const nextDayStr = (dateStr: string) => {
   return formatLocalDate(date);
 };
 
-export default function AdminCreateProjectPage() {
+export default function AdminCreateLicitationPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -62,16 +55,12 @@ export default function AdminCreateProjectPage() {
     start_date: "",
     end_date: "",
   });
-
   const [availableCities, setAvailableCities] = useState<string[]>([]);
 
   useEffect(() => {
     if (formData.department) {
-      const dept = colombiaData.find(
-        (d) => d.departamento === formData.department,
-      );
+      const dept = colombiaData.find((d) => d.departamento === formData.department);
       setAvailableCities(dept ? dept.ciudades : []);
-      // reset municipality if department changes
       setFormData((prev) => ({ ...prev, municipality: "" }));
     } else {
       setAvailableCities([]);
@@ -110,12 +99,11 @@ export default function AdminCreateProjectPage() {
         }
         body.append(key, value);
       });
-
-      await apiClient.post("/api/projects/", body);
-      toast.success("Proyecto creado con éxito");
-      router.push("/administrador/projects");
+      await apiClient.post("/api/licitations/", body);
+      toast.success("Licitación creada con éxito");
+      router.push("/administrador/licitations");
     } catch (err: any) {
-      toast.error(err?.message || "Error al crear proyecto");
+      toast.error(err?.message || "Error al crear licitación");
     } finally {
       setLoading(false);
     }
@@ -128,12 +116,8 @@ export default function AdminCreateProjectPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Crear Nuevo Proyecto
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Registra un proyecto para que los empresarios inviertan
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">Crear Nueva Licitación</h1>
+          <p className="text-sm text-muted-foreground">Registra una oportunidad de licitación para empresas.</p>
         </div>
       </div>
 
@@ -141,19 +125,15 @@ export default function AdminCreateProjectPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-primary" /> Detalles del
-              Proyecto
+              <Briefcase className="h-5 w-5 text-primary" /> Detalles de la Licitación
             </CardTitle>
-            <CardDescription>
-              Completa la información básica de la oportunidad
-            </CardDescription>
+            <CardDescription>Completa la información básica de la oportunidad</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-2">
-              <Label htmlFor="title">Título del Proyecto *</Label>
+              <Label htmlFor="title">Título *</Label>
               <Input
                 id="title"
-                placeholder="Ej: Construcción de Planta Solar"
                 value={formData.title}
                 onChange={(e) => handleInputChange("title", e.target.value)}
                 required
@@ -164,11 +144,8 @@ export default function AdminCreateProjectPage() {
               <Label htmlFor="description">Descripción</Label>
               <Textarea
                 id="description"
-                placeholder="Describe los detalles, objetivos y alcance del proyecto"
                 value={formData.description}
-                onChange={(e) =>
-                  handleInputChange("description", e.target.value)
-                }
+                onChange={(e) => handleInputChange("description", e.target.value)}
                 rows={5}
               />
             </div>
@@ -178,10 +155,7 @@ export default function AdminCreateProjectPage() {
                 <Label className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" /> Departamento *
                 </Label>
-                <Select
-                  value={formData.department}
-                  onValueChange={(val) => handleInputChange("department", val)}
-                >
+                <Select value={formData.department} onValueChange={(val) => handleInputChange("department", val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona..." />
                   </SelectTrigger>
@@ -201,9 +175,7 @@ export default function AdminCreateProjectPage() {
                 </Label>
                 <Select
                   value={formData.municipality}
-                  onValueChange={(val) =>
-                    handleInputChange("municipality", val)
-                  }
+                  onValueChange={(val) => handleInputChange("municipality", val)}
                   disabled={!formData.department}
                 >
                   <SelectTrigger>
@@ -215,6 +187,35 @@ export default function AdminCreateProjectPage() {
                         {city}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid gap-2">
+                <Label>Estado</Label>
+                <Select value={formData.status} onValueChange={(val) => handleInputChange("status", val)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="published">Activo</SelectItem>
+                    <SelectItem value="draft">Desactivado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Prioridad</Label>
+                <Select value={formData.priority} onValueChange={(val) => handleInputChange("priority", val)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Alta">Alta</SelectItem>
+                    <SelectItem value="Media">Media</SelectItem>
+                    <SelectItem value="Baja">Baja</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -242,42 +243,6 @@ export default function AdminCreateProjectPage() {
                 />
               </div>
             </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="grid gap-2">
-                <Label>Estado de Publicación</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(val) => handleInputChange("status", val)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="published">Publicado</SelectItem>
-                    <SelectItem value="draft">Borrador</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Prioridad</Label>
-                <Select
-                  value={formData.priority}
-                  onValueChange={(val) => handleInputChange("priority", val)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Alta">Alta</SelectItem>
-                    <SelectItem value="Media">Media</SelectItem>
-                    <SelectItem value="Baja">Baja</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
           </CardContent>
         </Card>
 
@@ -287,7 +252,7 @@ export default function AdminCreateProjectPage() {
           </Button>
           <Button type="submit" disabled={loading} className="gap-2">
             <Save className="h-4 w-4" />
-            {loading ? "Guardando..." : "Crear Proyecto"}
+            {loading ? "Guardando..." : "Crear Licitación"}
           </Button>
         </div>
       </form>

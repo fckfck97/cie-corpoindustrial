@@ -14,7 +14,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Edit, X, Save, User, Building, Phone, Mail, MapPin, Globe, Instagram, Facebook, Image as ImageIcon, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api-client';
-import { getFrontendRoleLabel } from '@/lib/model-choice-labels';
+import {
+  DOCUMENT_TYPE_OPTIONS,
+  ENTERPRISE_DOCUMENT_TYPE_OPTIONS,
+  getFrontendRoleLabel,
+} from '@/lib/model-choice-labels';
 
 type EnterpriseProfileApi = {
   enterprise?: {
@@ -132,23 +136,6 @@ const getFriendlyUniqueFieldError = (
   }
   return fallback;
 };
-const DOC_EMPLOYEE = [
-  { value: 'CC', label: 'CC' },
-  { value: 'CE', label: 'CE' },
-  { value: 'PA', label: 'Pasaporte' },
-  { value: 'TI', label: 'TI' },
-  { value: 'RC', label: 'RC' },
-  { value: 'PE', label: 'PE' },
-  { value: 'PT', label: 'PT' },
-] as const;
-
-const DOC_ENTERPRISE = [
-  { value: 'NIT', label: 'NIT' },
-  { value: 'CC', label: 'CC' },
-  { value: 'CE', label: 'CE' },
-  { value: 'PAS', label: 'Pasaporte' },
-] as const;
-
 function FieldShell({
   label,
   required,
@@ -433,7 +420,7 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      const email = employeeForm.email.trim().toLowerCase();
+      const email = (isEmployee ? employeeOriginalEmail : employeeForm.email).trim().toLowerCase();
       const firstName = employeeForm.first_name.trim();
       const lastName = employeeForm.last_name.trim();
       const documentType = employeeForm.document_type.trim();
@@ -647,7 +634,7 @@ export default function ProfilePage() {
                           type="email"
                           value={employeeForm.email}
                           onChange={(e) => setEmployeeForm((p) => ({ ...p, email: e.target.value }))}
-                          disabled={!isEditing}
+                          disabled={!isEditing || isEmployee}
                           className="pl-9"
                         />
                       </div>
@@ -679,7 +666,7 @@ export default function ProfilePage() {
                         disabled={!isEditing}
                       >
                         <option value="">Selecciona una opción</option>
-                        {DOC_EMPLOYEE.map((d) => (
+                        {DOCUMENT_TYPE_OPTIONS.map((d) => (
                           <option key={d.value} value={d.value}>
                             {d.label}
                           </option>
@@ -781,7 +768,7 @@ export default function ProfilePage() {
                 </CardHeader>
 
                 <CardContent className="pt-6 space-y-4">
-                  <div className="aspect-[3/1] rounded-lg border bg-muted overflow-hidden flex items-center justify-center">
+                  <div className="aspect-3/1 rounded-lg border bg-muted overflow-hidden flex items-center justify-center">
                     {enterpriseBanner ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -947,7 +934,7 @@ export default function ProfilePage() {
                             disabled={!isEditing || !canEditEnterprise}
                           >
                             <option value="">Selecciona una opción</option>
-                            {DOC_ENTERPRISE.map((d) => (
+                            {ENTERPRISE_DOCUMENT_TYPE_OPTIONS.map((d) => (
                               <option key={d.value} value={d.value}>
                                 {d.label}
                               </option>

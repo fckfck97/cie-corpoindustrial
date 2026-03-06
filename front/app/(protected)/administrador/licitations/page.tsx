@@ -15,44 +15,40 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Project = {
+type Licitation = {
   id: string;
   title: string;
-  description?: string;
   department?: string;
   municipality?: string;
-  priority?: string;
   status?: string;
-  start_date?: string;
-  end_date?: string;
   applications_count?: number;
 };
 
-type ProjectsResponse = {
+type LicitationsResponse = {
   results?: {
-    projects?: Project[];
+    licitations?: Licitation[];
   };
 };
 
-export default function AdminProjectsPage() {
+export default function AdminLicitationsPage() {
   const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [licitations, setLicitations] = useState<Licitation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadProjects = async () => {
+  const loadLicitations = async () => {
     setLoading(true);
     try {
-      const data = await apiClient.get<ProjectsResponse>("/api/projects/?page_size=200");
-      setProjects(data?.results?.projects || []);
+      const data = await apiClient.get<LicitationsResponse>("/api/licitations/?page_size=200");
+      setLicitations(data?.results?.licitations || []);
     } catch (error: any) {
-      toast.error(error?.message || "No se pudo cargar la bolsa de negocios");
+      toast.error(error?.message || "No se pudieron cargar las licitaciones");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadProjects();
+    loadLicitations();
   }, []);
 
   return (
@@ -61,27 +57,27 @@ export default function AdminProjectsPage() {
         <div>
           <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
             <Briefcase className="h-8 w-8 text-primary" />
-            Bolsa de negocios Amigos Corpoindustrial
+            Oportunidad Licitaciones
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Administración general de oportunidades.
+            Administración general de licitaciones.
           </p>
         </div>
-        <Button className="gap-2 ml-auto" onClick={() => router.push("/administrador/projects/create")}>
+        <Button className="gap-2 ml-auto" onClick={() => router.push("/administrador/licitations/create")}>
           <Plus className="h-4 w-4" />
-          Crear Oportunidad
+          Crear Licitación
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Listado de Oportunidades</CardTitle>
+          <CardTitle>Listado de Licitaciones</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="py-10 text-center text-muted-foreground">Cargando...</div>
-          ) : projects.length === 0 ? (
-            <div className="py-10 text-center text-muted-foreground">No hay oportunidades registradas.</div>
+          ) : licitations.length === 0 ? (
+            <div className="py-10 text-center text-muted-foreground">No hay licitaciones registradas.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -95,20 +91,20 @@ export default function AdminProjectsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {projects.map((project) => (
-                    <tr key={project.id} className="border-b hover:bg-muted/30 transition-colors">
-                      <td className="p-3 font-medium">{project.title}</td>
+                  {licitations.map((item) => (
+                    <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="p-3 font-medium">{item.title}</td>
                       <td className="p-3 text-muted-foreground">
-                        {project.municipality || "-"}, {project.department || "-"}
+                        {item.municipality || "-"}, {item.department || "-"}
                       </td>
                       <td className="p-3">
-                        <Badge variant={project.status === "published" ? "default" : "outline"}>
-                          {project.status === "published" ? "Activo" : "Desactivado"}
+                        <Badge variant={item.status === "published" ? "default" : "outline"}>
+                          {item.status === "published" ? "Activo" : "Desactivado"}
                         </Badge>
                       </td>
                       <td className="p-3 text-center">
                         <Badge variant="secondary" className="font-mono">
-                          {project.applications_count || 0}
+                          {item.applications_count || 0}
                         </Badge>
                       </td>
                       <td className="p-3 text-right">
@@ -119,7 +115,7 @@ export default function AdminProjectsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => router.push(`/administrador/projects/${project.id}`)}>
+                            <DropdownMenuItem onClick={() => router.push(`/administrador/licitations/${item.id}`)}>
                               <Eye className="mr-2 h-4 w-4" /> Gestionar Internamente
                             </DropdownMenuItem>
                           </DropdownMenuContent>

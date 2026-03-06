@@ -58,6 +58,22 @@ export type EmployeePortalResponse = {
     jobs_count?: number;
     benefits_count?: number;
   }>;
+  linked_enterprise?: {
+    id: string;
+    name: string;
+    email?: string;
+    description?: string;
+    niche?: string;
+    phone?: string;
+    address?: string;
+    facebook?: string;
+    instagram?: string;
+    X?: string;
+    avatar?: string | null;
+    banner?: string | null;
+    jobs_count?: number;
+    benefits_count?: number;
+  } | null;
   jobs: EmployeePortalJob[];
   benefits: EmployeePortalBenefit[];
   meta: {

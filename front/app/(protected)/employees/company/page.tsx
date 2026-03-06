@@ -6,7 +6,8 @@ import { fetchEmployeeCompanies, type EmployeeCompaniesResponse, type PaginatedR
 import { Button } from '@/components/ui/button';
 import { getImageUrl } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Search, Building2 } from 'lucide-react';
 
 export default function EmployeesCompanyPage() {
   const [portal, setPortal] = useState<PaginatedResponse<EmployeeCompaniesResponse> | null>(null);
@@ -33,37 +34,58 @@ export default function EmployeesCompanyPage() {
     setPage(1);
     setSearch(searchInput);
   };
+  const totalCompanies = portal?.count ?? 0;
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-6 pb-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary">Empresas</h1>
-          <p className="text-muted-foreground">Explora el directorio de empresas aliadas.</p>
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
+            <Building2 className="h-8 w-8 text-primary" />
+            Empresas
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">Explora el directorio de empresas aliadas.</p>
         </div>
-        <form onSubmit={handleSearch} className="flex w-full max-w-sm items-center space-x-2">
-           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Buscar empresa..."
-              className="pl-9 bg-background"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-          </div>
-          <Button type="submit">Buscar</Button>
-        </form>
       </div>
 
-      {loadingList ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-64 rounded-xl bg-muted animate-pulse" />
-          ))}
-        </div>
-      ) : (
-        <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Search className="h-5 w-5" />
+            Filtros y Búsqueda
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSearch} className="flex w-full max-w-md items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Buscar empresa..."
+                className="pl-9 bg-background"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+            </div>
+            <Button type="submit">Buscar</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Listado de empresas</CardTitle>
+          <CardDescription>{loadingList ? 'Cargando...' : `Total: ${totalCompanies}`}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingList ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-64 rounded-xl bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {(portal?.results || []).map((enterprise) => (
               <Link 
@@ -157,8 +179,10 @@ export default function EmployeesCompanyPage() {
               Siguiente
             </Button>
           </div>
-        </>
-      )}
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

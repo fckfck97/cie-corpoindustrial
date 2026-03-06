@@ -7,6 +7,7 @@ export type PaymentMethod = 'transfer' | 'cash' | 'card' | 'pse';
 export type DocumentType = '' | 'CC' | 'CE' | 'PA' | 'TI' | 'RC' | 'PE' | 'PT';
 export type EnterpriseDocumentType = '' | 'NIT' | 'CC';
 export type GenderType = '' | 'Masculino' | 'Femenino' | 'Otro';
+export type ChoiceOption<T extends string> = { value: T; label: string };
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   draft: 'Borrador',
@@ -46,20 +47,35 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   '': 'Seleccione un tipo de documento',
-  CC: 'CEDULA DE CIUDADANIA',
-  CE: 'CEDULA DE EXTRANJERIA',
+  CC: 'Cédula de ciudadanía',
+  CE: 'Cédula de extranjería',
   PA: 'PASAPORTE',
-  TI: 'TARJETA DE IDENTIDAD',
-  RC: 'REGISTRO CIVIL',
-  PE: 'PERMISO ESPECIAL DE PERMANENCIA',
-  PT: 'PERMISO DE PROTECCION TEMPORAL',
+  TI: 'Tarjeta de identidad',
+  RC: 'Registro civil',
+  PE: 'Permiso especial de permanencia',
+  PT: 'Permiso de protección temporal',
 };
 
 export const ENTERPRISE_DOCUMENT_TYPE_LABELS: Record<EnterpriseDocumentType, string> = {
   '': 'Seleccione un tipo de documento',
   NIT: 'NIT',
-  CC: 'CEDULA DE CIUDADANIA',
+  CC: 'Cédula de ciudadanía',
 };
+
+export const DOCUMENT_TYPE_OPTIONS: ChoiceOption<Exclude<DocumentType, ''>>[] = [
+  { value: 'CC', label: DOCUMENT_TYPE_LABELS.CC },
+  { value: 'CE', label: DOCUMENT_TYPE_LABELS.CE },
+  { value: 'PA', label: DOCUMENT_TYPE_LABELS.PA },
+  { value: 'TI', label: DOCUMENT_TYPE_LABELS.TI },
+  { value: 'RC', label: DOCUMENT_TYPE_LABELS.RC },
+  { value: 'PE', label: DOCUMENT_TYPE_LABELS.PE },
+  { value: 'PT', label: DOCUMENT_TYPE_LABELS.PT },
+];
+
+export const ENTERPRISE_DOCUMENT_TYPE_OPTIONS: ChoiceOption<Exclude<EnterpriseDocumentType, ''>>[] = [
+  { value: 'NIT', label: ENTERPRISE_DOCUMENT_TYPE_LABELS.NIT },
+  { value: 'CC', label: ENTERPRISE_DOCUMENT_TYPE_LABELS.CC },
+];
 
 export const GENDER_TYPE_LABELS: Record<GenderType, string> = {
   '': 'Seleccione un genero',
@@ -99,4 +115,12 @@ export function getPaymentMethodLabel(value?: string | null) {
 
 export function getPaymentStatusLabel(value?: string | null) {
   return getChoiceLabel(PAYMENT_STATUS_LABELS, value, 'Pendiente');
+}
+
+export function getDocumentTypeLabel(value?: string | null) {
+  return getChoiceLabel(DOCUMENT_TYPE_LABELS, value, '-');
+}
+
+export function getEnterpriseDocumentTypeLabel(value?: string | null) {
+  return getChoiceLabel(ENTERPRISE_DOCUMENT_TYPE_LABELS, value, '-');
 }

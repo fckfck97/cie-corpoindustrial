@@ -17,6 +17,13 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import F
 from urllib.parse import quote
 from django.utils import timezone
+from apps.user.models import UserAccount
+
+
+def _enterprise_category(user: UserAccount) -> str:
+    profile = getattr(user, "userprofile", None)
+    niche = getattr(profile, "niche", None) if profile else None
+    return (niche or "").strip()
 
 class ProductView(APIView):
     serializer_class = ProductSerializer
@@ -94,8 +101,26 @@ class ProductView(APIView):
             return paginator.get_paginated_response({'products': result_page})
         
     def post(self, request):
-        data = request.data.copy()  # Create a mutable copy of the QueryDict
-        data['user'] = request.user.id
+        role = getattr(request.user, "role", None)
+        data = request.data.copy()
+
+        if role == "enterprise":
+            owner = request.user
+        elif role == "Admin":
+            enterprise_id = data.get("user") or data.get("enterprise_id")
+            if not enterprise_id:
+                return Response({"error": "Selecciona una empresa."}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                owner = UserAccount.objects.get(id=enterprise_id, role="enterprise", is_active=True)
+            except UserAccount.DoesNotExist:
+                return Response({"error": "Empresa no valida."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"error": "No autorizado para crear productos."}, status=status.HTTP_403_FORBIDDEN)
+
+        data["user"] = str(owner.id)
+        data["category"] = _enterprise_category(owner)
+        data["subcategory"] = ""
+        data["extracategory"] = ""
         serializer = ProductSerializer(data=data)
         if serializer.is_valid():
             product = serializer.save()
@@ -108,6 +133,12 @@ class ProductView(APIView):
             data = request.data
             pk = data["id"]
             product = Product.objects.get(pk=pk)
+            role = getattr(request.user, "role", None)
+
+            if role == "enterprise" and product.user_id != request.user.id:
+                return Response({"error": "No autorizado."}, status=status.HTTP_403_FORBIDDEN)
+            if role not in ["enterprise", "Admin"]:
+                return Response({"error": "No autorizado."}, status=status.HTTP_403_FORBIDDEN)
 
             # actualizar categoria por partes
             if data.get('name') and data['name'] not in ['undefined', '']:
@@ -122,14 +153,10 @@ class ProductView(APIView):
             if data.get('image') and data['image'] not in ['undefined', '']:
                 product.image = data['image']
 
-            if data.get('category') and data['category'] not in ['undefined', '']:
-                product.category = data['category']
-
-            if data.get('subcategory') and data['subcategory'] not in ['undefined', '']:
-                product.subcategory = data['subcategory']
-
-            if data.get('extracategory') and data['extracategory'] not in ['undefined', '']:
-                product.extracategory = data['extracategory']
+            # Categoria controlada internamente por el nicho empresarial.
+            product.category = _enterprise_category(product.user) if product.user else ""
+            product.subcategory = ""
+            product.extracategory = ""
 
             product.updated_at = datetime.datetime.now()
 

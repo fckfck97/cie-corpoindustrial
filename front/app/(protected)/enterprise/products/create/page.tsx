@@ -21,9 +21,6 @@ export default function CreateProductPage() {
   const [form, setForm] = useState({
     name: '',
     description: '',
-    category: '',
-    subcategory: '',
-    extracategory: '',
     image: null as File | null,
   });
 
@@ -72,9 +69,6 @@ export default function CreateProductPage() {
       const body = new FormData();
       body.append('name', name);
       body.append('description', description);
-      body.append('category', form.category.trim());
-      body.append('subcategory', form.subcategory.trim());
-      body.append('extracategory', form.extracategory.trim());
       body.append('image', form.image);
 
       await apiClient.post('/product/create/', body);
@@ -157,43 +151,6 @@ export default function CreateProductPage() {
                   </div>
                 </div>
 
-                {/* Sección: Clasificación */}
-                <div className="grid gap-4">
-                  <h2 className="text-sm font-semibold text-muted-foreground">Clasificación</h2>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="category">Categoría</Label>
-                      <Input
-                        id="category"
-                        value={form.category}
-                        onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
-                        placeholder="Ej: Electrónica"
-                      />
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="subcategory">Subcategoría</Label>
-                      <Input
-                        id="subcategory"
-                        value={form.subcategory}
-                        onChange={(e) => setForm((p) => ({ ...p, subcategory: e.target.value }))}
-                        placeholder="Ej: Computadoras"
-                      />
-                    </div>
-
-                    <div className="grid gap-2 sm:col-span-2">
-                      <Label htmlFor="extracategory">Extra categoría</Label>
-                      <Input
-                        id="extracategory"
-                        value={form.extracategory}
-                        onChange={(e) => setForm((p) => ({ ...p, extracategory: e.target.value }))}
-                        placeholder="Ej: Portátiles"
-                      />
-                    </div>
-                  </div>
-                </div>
-
                 {/* Sección: Imagen */}
                 <div className="grid gap-4">
                   <h2 className="text-sm font-semibold text-muted-foreground">Multimedia</h2>
@@ -263,21 +220,6 @@ export default function CreateProductPage() {
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-muted-foreground">Nombre</span>
                   <span className="font-medium text-right">{form.name.trim() || '—'}</span>
-                </div>
-
-                <div className="flex items-start justify-between gap-3">
-                  <span className="text-muted-foreground">Categoría</span>
-                  <span className="font-medium text-right">{form.category.trim() || '—'}</span>
-                </div>
-
-                <div className="flex items-start justify-between gap-3">
-                  <span className="text-muted-foreground">Subcategoría</span>
-                  <span className="font-medium text-right">{form.subcategory.trim() || '—'}</span>
-                </div>
-
-                <div className="flex items-start justify-between gap-3">
-                  <span className="text-muted-foreground">Extra</span>
-                  <span className="font-medium text-right">{form.extracategory.trim() || '—'}</span>
                 </div>
 
                 <div className="pt-2 border-t">

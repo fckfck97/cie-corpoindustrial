@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { reportUi } from '@/utils/report-ui';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { Wallet, Upload, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { ExportPdfButton } from '@/components/ExportPdfButton';
 
 type BackendUser = {
   id: string;
@@ -51,6 +53,12 @@ type BillingRow = {
   payments?: PaymentInfo[];
   is_blocked: boolean;
 };
+type EnterprisePayment = {
+  enterpriseId: string;
+  enterpriseName: string;
+  enterpriseEmail: string;
+  payment: PaymentInfo;
+};
 
 type BillingResponse = {
   enterprises: BillingRow[];
@@ -75,6 +83,14 @@ const paymentMethods = [
 
 const monthLabel = (year: number, month: number) => `${String(month).padStart(2, '0')}/${year}`;
 const isPaymentEnabled = (payment: PaymentInfo) => payment.status !== 'paid' && payment.can_register === true;
+const parseAmount = (value?: string | null) => {
+  if (!value) return 0;
+  const normalized = String(value).replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.');
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value);
 
 export default function AdminPaymentsPage() {
   const searchParams = useSearchParams();
@@ -130,6 +146,21 @@ export default function AdminPaymentsPage() {
     () => [...rows].sort((a, b) => (a.enterprise.enterprise || '').localeCompare(b.enterprise.enterprise || '')),
     [rows]
   );
+  const selectedEnterpriseName = useMemo(() => {
+    const match = sortedRows.find((row) => row.enterprise.id === reportEnterpriseId);
+    return match?.enterprise.enterprise || match?.enterprise.username || 'Empresa';
+  }, [reportEnterpriseId, sortedRows]);
+  const selectedEnterpriseEmail = useMemo(() => {
+    const match = sortedRows.find((row) => row.enterprise.id === reportEnterpriseId);
+    return match?.enterprise.email || '-';
+  }, [reportEnterpriseId, sortedRows]);
+  const reportTotals = useMemo(() => {
+    const payments = reportData?.payments || [];
+    const billed = payments.reduce((acc, payment) => acc + parseAmount(payment.amount), 0);
+    const paid = payments.reduce((acc, payment) => acc + parseAmount(payment.paid_amount || (payment.status === 'paid' ? payment.amount : '0')), 0);
+    const pending = payments.reduce((acc, payment) => acc + (payment.status === 'paid' ? 0 : parseAmount(payment.amount)), 0);
+    return { billed, paid, pending };
+  }, [reportData]);
 
   const openPaymentModal = (payment: PaymentInfo, enterpriseName: string) => {
     setSelectedPayment({ payment, enterpriseName });
@@ -184,9 +215,148 @@ export default function AdminPaymentsPage() {
     return <Badge className="bg-amber-100 text-amber-800">Pendiente</Badge>;
   };
 
+  const exportReportToPDF = () => {
+    if (!reportEnterpriseId) {
+      toast.error('Selecciona una empresa y genera el reporte.');
+      return;
+    }
+
+    if (!reportData?.payments?.length) {
+      toast.error('Primero genera un reporte con datos.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Permite ventanas emergentes para exportar PDF.');
+      return;
+    }
+
+    const reportPayments = reportData.payments.map((payment) => ({
+      enterpriseId: reportEnterpriseId,
+      enterpriseName: selectedEnterpriseName,
+      enterpriseEmail: selectedEnterpriseEmail,
+      payment,
+    }));
+
+    const monthPendingOrOverdue = reportPayments.filter(({ payment }) => payment.status === 'pending' || payment.status === 'overdue');
+    const paidPayments = reportPayments.filter(({ payment }) => payment.status === 'paid');
+
+    const htmlRow = (entry: EnterprisePayment) => `
+      <tr>
+        <td>${entry.enterpriseName}</td>
+        <td>${entry.enterpriseEmail}</td>
+        <td>${monthLabel(entry.payment.year, entry.payment.month)}</td>
+        <td>${entry.payment.status}</td>
+        <td>${entry.payment.amount || '-'}</td>
+        <td>${entry.payment.paid_amount || '-'}</td>
+        <td>${entry.payment.payment_reference || '-'}</td>
+        <td>${entry.payment.paid_at ? new Date(entry.payment.paid_at).toLocaleString('es-CO') : '-'}</td>
+      </tr>
+    `;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Reporte de Pagos por Empresa</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #0f172a; padding: 18px; }
+            h1 { margin: 0 0 8px 0; color: #2563eb; }
+            h2 { margin: 22px 0 10px 0; color: #1e293b; font-size: 16px; }
+            .meta { margin: 12px 0 18px 0; padding: 12px; background: #f8fafc; border-radius: 8px; font-size: 14px; }
+            .meta-item { margin-bottom: 4px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th { background: #2563eb; color: #fff; text-align: left; padding: 8px; }
+            td { border-bottom: 1px solid #e2e8f0; padding: 7px 8px; }
+            tr:nth-child(even) { background: #f8fafc; }
+            .footer { margin-top: 18px; font-size: 12px; color: #64748b; }
+          </style>
+        </head>
+        <body>
+          <h1>Reporte de Pagos por Empresa</h1>
+          <div class="meta">
+            <div class="meta-item"><strong>Empresa:</strong> ${selectedEnterpriseName}</div>
+            <div class="meta-item"><strong>Correo:</strong> ${selectedEnterpriseEmail}</div>
+            <div class="meta-item"><strong>Periodo:</strong> ${String(reportMonth).padStart(2, '0')}/${reportYear}</div>
+            <div class="meta-item"><strong>Pagos del reporte:</strong> ${reportPayments.length}</div>
+            <div class="meta-item"><strong>Pagados:</strong> ${paidPayments.length}</div>
+            <div class="meta-item"><strong>Mes pendiente/vencido:</strong> ${monthPendingOrOverdue.length}</div>
+            <div class="meta-item"><strong>Total facturado:</strong> ${formatCurrency(reportTotals.billed)}</div>
+            <div class="meta-item"><strong>Total pagado:</strong> ${formatCurrency(reportTotals.paid)}</div>
+            <div class="meta-item"><strong>Total pendiente:</strong> ${formatCurrency(reportTotals.pending)}</div>
+          </div>
+
+          <h2>Pagos del Reporte</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa</th>
+                <th>Correo</th>
+                <th>Mes</th>
+                <th>Estado</th>
+                <th>Monto</th>
+                <th>Pagado</th>
+                <th>Referencia</th>
+                <th>Fecha pago</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reportPayments.map((entry) => htmlRow(entry)).join('')}
+            </tbody>
+          </table>
+
+          <h2>Pagados</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa</th>
+                <th>Correo</th>
+                <th>Mes</th>
+                <th>Estado</th>
+                <th>Monto</th>
+                <th>Pagado</th>
+                <th>Referencia</th>
+                <th>Fecha pago</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${paidPayments.map((entry) => htmlRow(entry)).join('') || '<tr><td colspan="8">Sin pagos pagados.</td></tr>'}
+            </tbody>
+          </table>
+
+          <h2>Del Mes Pendiente o Vencido (${String(reportMonth).padStart(2, '0')}/${reportYear})</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa</th>
+                <th>Correo</th>
+                <th>Mes</th>
+                <th>Estado</th>
+                <th>Monto</th>
+                <th>Pagado</th>
+                <th>Referencia</th>
+                <th>Fecha pago</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${monthPendingOrOverdue.map((entry) => htmlRow(entry)).join('') || '<tr><td colspan="8">Sin pagos pendientes o vencidos para este mes.</td></tr>'}
+            </tbody>
+          </table>
+          <div class="footer">Generado el ${new Date().toLocaleString('es-CO')}</div>
+          <script>window.onload = () => window.print();</script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className={reportUi.headerRow}>
         <div>
           <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
             <Wallet className="h-8 w-8 text-primary" />
@@ -195,6 +365,14 @@ export default function AdminPaymentsPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Registro y trazabilidad de pagos por empresa.
           </p>
+        </div>
+        <div className={reportUi.actionsRow}>
+          <ExportPdfButton
+            onClick={exportReportToPDF}
+            className={reportUi.exportButton}
+            disabled={!reportEnterpriseId || !reportData?.payments?.length}
+            title={!reportEnterpriseId ? 'Selecciona una empresa y genera el reporte' : undefined}
+          />
         </div>
       </div>
 
@@ -232,6 +410,11 @@ export default function AdminPaymentsPage() {
                     <div><strong>Pagados:</strong> {reportData.summary.paid}</div>
                     <div><strong>Pendientes:</strong> {reportData.summary.pending}</div>
                     <div><strong>Vencidos:</strong> {reportData.summary.overdue}</div>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-3 text-sm border-t pt-3">
+                    <div><strong>Total facturado:</strong> {formatCurrency(reportTotals.billed)}</div>
+                    <div><strong>Total pagado:</strong> {formatCurrency(reportTotals.paid)}</div>
+                    <div><strong>Total pendiente:</strong> {formatCurrency(reportTotals.pending)}</div>
                   </div>
                 </div>
               )}

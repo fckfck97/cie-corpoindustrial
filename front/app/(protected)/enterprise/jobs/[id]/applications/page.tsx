@@ -15,13 +15,13 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  FileSpreadsheet,
   FileText,
   Mail,
   Phone,
   UserRound,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ExportPdfButton } from '@/components/ExportPdfButton';
 
 type JobData = {
   id: string;
@@ -81,8 +81,6 @@ const extractApplications = (payload: ApplicationsListResponse) => {
     paginated: true,
   };
 };
-
-const csvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
 export default function EnterpriseJobApplicationsPage() {
   const params = useParams<{ id: string }>();
@@ -178,52 +176,6 @@ export default function EnterpriseJobApplicationsPage() {
     }
 
     return collected;
-  };
-
-  const exportToExcel = async () => {
-    if (totalApplications === 0) {
-      toast.error('No hay postulaciones para exportar');
-      return;
-    }
-
-    setExporting(true);
-    try {
-      const exportItems = await getExportApplications();
-      if (exportItems.length === 0) {
-        toast.error('No hay postulaciones para exportar');
-        return;
-      }
-
-      const headers = ['Nombre', 'Correo', 'Teléfono', 'Fecha', 'CV', 'Carta de presentación'];
-      const rows = exportItems.map((app) => [
-        app.full_name,
-        app.email,
-        app.phone || '-',
-        new Date(app.created_at).toLocaleString('es-ES'),
-        app.cv_url || (app.cv ? getImageUrl(app.cv) : '-'),
-        app.cover_letter || '-',
-      ]);
-
-      const csv = [
-        headers.map(csvCell).join(','),
-        ...rows.map((row) => row.map(csvCell).join(',')),
-      ].join('\n');
-
-      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `postulaciones-${job?.title || jobId}-${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      toast.success('Reporte Excel generado');
-    } catch (err: any) {
-      toast.error(err?.message || 'No se pudo generar el reporte Excel');
-    } finally {
-      setExporting(false);
-    }
   };
 
   const exportToPDF = async () => {
@@ -324,14 +276,12 @@ export default function EnterpriseJobApplicationsPage() {
             <p className="text-muted-foreground">Vista separada de candidatos por oferta.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" className={reportUi.exportButton} onClick={exportToExcel} disabled={loading || exporting || totalApplications === 0}>
-              <FileSpreadsheet className="h-4 w-4" />
-              Excel
-            </Button>
-            <Button variant="outline" size="sm" className={reportUi.exportButton} onClick={exportToPDF} disabled={loading || exporting || totalApplications === 0}>
-              <FileText className="h-4 w-4" />
-              PDF
-            </Button>
+            <ExportPdfButton
+              onClick={exportToPDF}
+              className={reportUi.exportButton}
+              disabled={loading || totalApplications === 0}
+              loading={exporting}
+            />
             <Button variant="outline" asChild>
               <Link href="/enterprise/jobs">
                 <ArrowLeft className="mr-2 h-4 w-4" />

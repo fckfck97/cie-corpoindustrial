@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, ArrowRight, Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { DOCUMENT_TYPE_OPTIONS, ENTERPRISE_DOCUMENT_TYPE_OPTIONS } from "@/lib/model-choice-labels";
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");
 const normalizePhone = (value: string) => {
@@ -466,13 +467,11 @@ export default function AdminEditCompanyPage() {
                       required
                     >
                       <option value="">Seleccione un tipo de documento</option>
-                      <option value="CC">CC</option>
-                      <option value="CE">CE</option>
-                      <option value="PA">Pasaporte</option>
-                      <option value="TI">TI</option>
-                      <option value="RC">RC</option>
-                      <option value="PE">PE</option>
-                      <option value="PT">PT</option>
+                      {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -540,10 +539,11 @@ export default function AdminEditCompanyPage() {
                       onChange={(e) => setProfileForm((p) => ({ ...p, document_type_enterprise: e.target.value }))}
                     >
                       <option value="">Seleccione un tipo de documento</option>
-                      <option value="NIT">NIT</option>
-                      <option value="CC">CC</option>
-                      <option value="CE">CE</option>
-                      <option value="PAS">Pasaporte</option>
+                      {ENTERPRISE_DOCUMENT_TYPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="grid gap-2">

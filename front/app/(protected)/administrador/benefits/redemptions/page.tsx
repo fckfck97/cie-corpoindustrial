@@ -8,8 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { apiClient } from '@/lib/api-client';
 import {
-  Download,
-  FileSpreadsheet,
   FileText,
   Search,
   Filter,
@@ -27,6 +25,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { reportUi } from '@/utils/report-ui';
+import { ExportPdfButton } from '@/components/ExportPdfButton';
 
 type Redemption = {
   id: string;
@@ -98,6 +97,7 @@ export default function AdminBenefitsRedemptionsPage() {
   };
 
   const hasActiveFilters = searchTerm || selectedEnterprise !== 'all' || selectedMonth !== 'all';
+  const canExportPdf = selectedEnterprise !== 'all';
 
   // Generar opciones de meses (últimos 12 meses)
   const monthOptions = useMemo(() => {
@@ -139,39 +139,12 @@ export default function AdminBenefitsRedemptionsPage() {
     });
   };
 
-  const exportToExcel = () => {
-    if (!report?.redemptions || report.redemptions.length === 0) {
-      alert('No hay datos para exportar');
+  const exportToPDF = () => {
+    if (!canExportPdf) {
+      alert('Selecciona una empresa para generar el PDF');
       return;
     }
 
-    // Crear CSV (compatible con Excel)
-    const headers = ['Empresa', 'Beneficio', 'Empleado', 'Correo', 'Fecha'];
-    const rows = report.redemptions.map((r) => [
-      r.enterprise_name || '-',
-      r.product_name || r.product_id_snapshot || '-',
-      `${r.employee_name || ''} ${r.employee_last_name || ''}`.trim() || '-',
-      r.employee_email || '-',
-      new Date(r.redeemed_at).toLocaleString('es-ES'),
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
-    ].join('\n');
-
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `canjes-beneficios-${new Date().toISOString().slice(0, 10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const exportToPDF = () => {
     if (!report?.redemptions || report.redemptions.length === 0) {
       alert('No hay datos para exportar');
       return;
@@ -346,14 +319,12 @@ export default function AdminBenefitsRedemptionsPage() {
           </p>
         </div>
         <div className={reportUi.actionsRow}>
-          <Button onClick={exportToExcel} variant="outline" size="sm" className={reportUi.exportButton}>
-            <FileSpreadsheet className="h-4 w-4" />
-            Excel
-          </Button>
-          <Button onClick={exportToPDF} variant="outline" size="sm" className={reportUi.exportButton}>
-            <FileText className="h-4 w-4" />
-            PDF
-          </Button>
+          <ExportPdfButton
+            onClick={exportToPDF}
+            className={reportUi.exportButton}
+            disabled={!canExportPdf}
+            title={!canExportPdf ? 'Selecciona una empresa para habilitar la exportacion PDF' : undefined}
+          />
         </div>
       </div>
 

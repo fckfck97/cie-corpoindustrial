@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { DashboardLayout } from "@/components/DashboardLayout";
 import { apiClient } from "@/lib/api-client";
 import {
   Card,
@@ -13,38 +12,48 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft,
+  Briefcase,
+  Building2,
   MapPin,
   Users,
-  Download,
   Mail,
   Phone,
   Calendar,
-  DollarSign,
-  TrendingUp,
-  FileText,
   ChevronLeft,
   ChevronRight,
+  Search,
+  Pencil,
+  Power,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getImageUrl } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { reportUi } from "@/utils/report-ui";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ExportPdfButton } from "@/components/ExportPdfButton";
 
 type Project = {
   id: string;
   title: string;
   description?: string;
-  amount?: number;
   department?: string;
   municipality?: string;
-  image?: string;
   priority?: string;
   status?: string;
   created?: string;
-  invested_amount?: number;
-  remaining_amount?: number;
+  start_date?: string;
+  end_date?: string;
 };
 
 type Application = {
@@ -53,9 +62,32 @@ type Application = {
   email: string;
   phone?: string;
   message?: string;
-  capital_investment?: number;
   created_at: string;
   enterprise_name?: string;
+};
+
+type ApplicationsResponse = {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
+  results?: Application[];
+};
+
+const isoToDate = (value?: string) => (value ? value.slice(0, 10) : "");
+const dateToUtcIso = (value: string) => `${value}T00:00:00Z`;
+const formatLocalDate = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+const todayStr = () => {
+  return formatLocalDate(new Date());
+};
+const nextDayStr = (dateStr: string) => {
+  const date = new Date(`${dateStr}T00:00:00`);
+  date.setDate(date.getDate() + 1);
+  return formatLocalDate(date);
 };
 
 export default function AdminProjectDetailsPage() {
@@ -66,22 +98,32 @@ export default function AdminProjectDetailsPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingApplications, setLoadingApplications] = useState(false);
 
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrevious, setHasPrevious] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [savingProject, setSavingProject] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    department: "",
+    municipality: "",
+    priority: "Media",
+    status: "published",
+    start_date: "",
+    end_date: "",
+  });
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [projData, appsData] = await Promise.all([
-        apiClient.get<any>(`/api/projects/${projectId}/`),
-        apiClient.get<Application[]>(
-          `/api/projects-applications/admin/?project=${projectId}`,
-        ),
-      ]);
+      const projData = await apiClient.get<any>(`/api/projects/${projectId}/`);
       setProject(projData?.project || null);
-      setApplications(appsData || []);
     } catch (error: any) {
       toast.error(error?.message || "Error al cargar detalles del proyecto");
     } finally {
@@ -89,66 +131,137 @@ export default function AdminProjectDetailsPage() {
     }
   };
 
+  const loadApplications = async () => {
+    setLoadingApplications(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("project", projectId);
+      params.set("page", String(currentPage));
+      params.set("page_size", "10");
+      if (searchTerm.trim()) params.set("search", searchTerm.trim());
+
+      const data = await apiClient.get<ApplicationsResponse>(
+        `/api/projects-applications/admin/?${params.toString()}`,
+      );
+      const rows = data?.results || [];
+      const count = Number(data?.count || rows.length || 0);
+      setApplications(rows);
+      setTotalCount(count);
+      setHasNext(Boolean(data?.next));
+      setHasPrevious(Boolean(data?.previous));
+      setTotalPages(Math.max(1, Math.ceil(count / 10)));
+    } catch (error: any) {
+      toast.error(error?.message || "Error al cargar postulaciones");
+    } finally {
+      setLoadingApplications(false);
+    }
+  };
+
   useEffect(() => {
     if (projectId) loadData();
   }, [projectId]);
 
-  const exportToExcel = () => {
-    if (applications.length === 0) {
-      toast.error("No hay postulaciones para exportar");
-      return;
+  useEffect(() => {
+    if (!projectId) return;
+    loadApplications();
+  }, [projectId, currentPage, searchTerm]);
+
+  useEffect(() => {
+    if (!project) return;
+    setEditForm({
+      title: project.title || "",
+      description: project.description || "",
+      department: project.department || "",
+      municipality: project.municipality || "",
+      priority: project.priority || "Media",
+      status: project.status || "published",
+      start_date: isoToDate(project.start_date),
+      end_date: isoToDate(project.end_date),
+    });
+  }, [project]);
+
+  const fetchApplicationsForExport = async () => {
+    const collected: Application[] = [];
+    let page = 1;
+
+    while (page <= 200) {
+      const params = new URLSearchParams();
+      params.set("project", projectId);
+      params.set("page", String(page));
+      params.set("page_size", "100");
+      if (searchTerm.trim()) params.set("search", searchTerm.trim());
+
+      const data = await apiClient.get<ApplicationsResponse>(
+        `/api/projects-applications/admin/?${params.toString()}`,
+      );
+      const rows = data?.results || [];
+      collected.push(...rows);
+      if (!data?.next) break;
+      page += 1;
     }
 
-    const headers = [
-      "Empresa",
-      "Representante",
-      "Correo",
-      "Teléfono",
-      "Monto a Invertir",
-      "Mensaje",
-      "Fecha de Postulación",
-    ];
+    return collected;
+  };
 
-    const csvContent = [
-      headers.join(","),
-      ...applications.map((app) =>
-        [
-          `"${(app.enterprise_name || "Sin Empresa").replace(/"/g, '""')}"`,
-          `"${app.full_name.replace(/"/g, '""')}"`,
-          `"${app.email}"`,
-          `"${app.phone || ""}"`,
-          app.capital_investment || 0,
-          `"${(app.message || "").replace(/"/g, '""')}"`,
-          `"${new Date(app.created_at).toLocaleDateString("es-ES")}"`,
-        ].join(","),
-      ),
-    ].join("\n");
+  const saveProjectChanges = async () => {
+    if (!project) return;
+    if (!editForm.start_date || !editForm.end_date) {
+      toast.error("Debes seleccionar fecha de inicio y fecha de cierre.");
+      return;
+    }
+    if (editForm.start_date < todayStr()) return toast.error("La fecha de inicio no puede ser anterior a hoy.");
+    if (editForm.end_date <= editForm.start_date) return toast.error("La fecha de cierre debe ser posterior a la fecha de inicio.");
+    setSavingProject(true);
+    try {
+      const body = new FormData();
+      body.append("id", project.id);
+      body.append("title", editForm.title);
+      body.append("description", editForm.description);
+      body.append("department", editForm.department);
+      body.append("municipality", editForm.municipality);
+      body.append("priority", editForm.priority);
+      body.append("status", editForm.status);
+      if (editForm.start_date) body.append("start_date", dateToUtcIso(editForm.start_date));
+      if (editForm.end_date) body.append("end_date", dateToUtcIso(editForm.end_date));
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `postulaciones_${project?.title || "proyecto"}.csv`,
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Excel descargado correctamente");
+      await apiClient.put(`/api/projects/${project.id}/`, body);
+      toast.success("Proyecto actualizado.");
+      setEditOpen(false);
+      await loadData();
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo actualizar el proyecto.");
+    } finally {
+      setSavingProject(false);
+    }
+  };
+
+  const toggleProjectStatus = async () => {
+    if (!project) return;
+    const nextStatus = project.status === "published" ? "draft" : "published";
+    try {
+      const body = new FormData();
+      body.append("id", project.id);
+      body.append("status", nextStatus);
+      await apiClient.put(`/api/projects/${project.id}/`, body);
+      toast.success(nextStatus === "draft" ? "Proyecto desactivado." : "Proyecto activado.");
+      await loadData();
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo cambiar el estado.");
+    }
   };
 
   const exportToPDF = () => {
-    if (applications.length === 0) {
-      toast.error("No hay postulaciones para exportar");
-      return;
-    }
+    (async () => {
+      const exportRows = await fetchApplicationsForExport();
+      if (exportRows.length === 0) {
+        toast.error("No hay postulaciones para exportar");
+        return;
+      }
 
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) return;
 
-    printWindow.document.write(`
+      printWindow.document.write(`
       <html>
         <head>
           <title>Reporte de Postulaciones - ${project?.title}</title>
@@ -165,9 +278,8 @@ export default function AdminProjectDetailsPage() {
         <body>
           <h1>Reporte de Postulaciones al Proyecto</h1>
           <h2>Proyecto: ${project?.title}</h2>
-          <p><strong>Meta:</strong> $${Number(project?.amount || 0).toLocaleString()}</p>
-          <p><strong>Total Invertido:</strong> $${Number(project?.invested_amount || 0).toLocaleString()}</p>
-          <p><strong>Faltante:</strong> $${Number(project?.remaining_amount || 0).toLocaleString()}</p>
+          <p><strong>Total postulaciones (filtro aplicado):</strong> ${exportRows.length}</p>
+          <p><strong>Búsqueda:</strong> ${searchTerm || "Sin filtro"}</p>
           <p>Fecha de generación: ${new Date().toLocaleDateString("es-ES")}</p>
           <table>
             <thead>
@@ -176,12 +288,11 @@ export default function AdminProjectDetailsPage() {
                 <th>Representante</th>
                 <th>Correo</th>
                 <th>Teléfono</th>
-                <th>Monto a Invertir</th>
                 <th>Fecha</th>
               </tr>
             </thead>
             <tbody>
-              ${applications
+              ${exportRows
                 .map(
                   (app) => `
                 <tr>
@@ -189,7 +300,6 @@ export default function AdminProjectDetailsPage() {
                   <td>${app.full_name}</td>
                   <td>${app.email}</td>
                   <td>${app.phone || ""}</td>
-                  <td>$${Number(app.capital_investment || 0).toLocaleString()}</td>
                   <td>${new Date(app.created_at).toLocaleDateString("es-ES")}</td>
                 </tr>
               `,
@@ -201,20 +311,14 @@ export default function AdminProjectDetailsPage() {
       </html>
     `);
 
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    })().catch(() => toast.error("No se pudo exportar el PDF."));
   };
-
-  // Pagination logic
-  const totalPages = Math.ceil(applications.length / itemsPerPage);
-  const paginatedApplications = applications.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
 
   if (loading) {
     return (
@@ -234,97 +338,70 @@ export default function AdminProjectDetailsPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Detalles del Proyecto
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Información y lista de empresarios postulados
-          </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex items-start gap-3">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <Briefcase className="h-6 w-6 text-primary" />
+              Detalle de oportunidad
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gestion de la oportunidad y seguimiento de empresarios postulados.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 self-end md:self-auto">
+          <Button variant="outline" className="gap-2" onClick={() => setEditOpen(true)}>
+            <Pencil className="h-4 w-4" />
+            Editar
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={toggleProjectStatus}>
+            <Power className="h-4 w-4" />
+            {project.status === "published" ? "Desactivar" : "Activar"}
+          </Button>
         </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-1 space-y-6">
           <Card>
-            <CardContent className="p-0">
-              <div className="aspect-video w-full bg-muted rounded-t-lg overflow-hidden">
-                {getImageUrl(project.image) ? (
-                  <img
-                    src={getImageUrl(project.image)}
-                    alt={project.title}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-muted-foreground">
-                    Sin imagen
-                  </div>
-                )}
-              </div>
-              <div className="p-4 space-y-4">
+            <CardContent className="p-4 space-y-4">
                 <div>
                   <h2 className="text-xl font-bold line-clamp-2">
                     {project.title}
                   </h2>
-                  <div className="flex gap-2 mt-2">
-                    <Badge
-                      variant={
-                        project.status === "published" ? "default" : "secondary"
-                      }
-                    >
-                      {project.status === "published"
-                        ? "Publicado"
-                        : "Borrador"}
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <Badge variant={project.status === "published" ? "default" : "secondary"}>
+                      {project.status === "published" ? "Publicada" : "Borrador"}
                     </Badge>
-                    <Badge variant="outline">{project.priority}</Badge>
+                    <Badge variant="outline">Prioridad {project.priority || "-"}</Badge>
                   </div>
                 </div>
 
-                <div className="space-y-4 text-sm mt-4">
+                <div className="space-y-3 text-sm mt-4 rounded-md border bg-muted/20 p-3">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <MapPin className="h-4 w-4" />
                     <span>
-                      {project.municipality}, {project.department}
+                      {project.municipality || "-"}, {project.department || "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    <span>
+                      {project.start_date ? new Date(project.start_date).toLocaleDateString("es-CO") : "-"}
+                      {" "}a{" "}
+                      {project.end_date ? new Date(project.end_date).toLocaleDateString("es-CO") : "-"}
                     </span>
                   </div>
 
-                  <div className="grid gap-2 p-3 bg-muted/30 rounded-md border">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-muted-foreground flex items-center gap-1">
-                        <DollarSign className="h-4 w-4 text-primary" /> Meta
-                      </span>
-                      <span className="font-bold text-lg">
-                        ${Number(project.amount || 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-muted-foreground flex items-center gap-1">
-                        <TrendingUp className="h-4 w-4 text-green-600" />{" "}
-                        Invertido
-                      </span>
-                      <span className="font-bold text-green-600">
-                        ${Number(project.invested_amount || 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between border-t pt-2">
-                      <span className="font-semibold text-muted-foreground flex items-center gap-1">
-                        Faltante
-                      </span>
-                      <span className="font-bold text-amber-600">
-                        $
-                        {Number(project.remaining_amount || 0).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
                 </div>
 
                 {project.description && (
                   <div className="pt-4 border-t">
-                    <h3 className="font-semibold mb-2">Descripción</h3>
+                    <h3 className="font-semibold mb-2">Descripcion</h3>
                     <div
                       className="text-sm text-muted-foreground prose prose-sm max-w-none"
                       dangerouslySetInnerHTML={{
@@ -333,6 +410,23 @@ export default function AdminProjectDetailsPage() {
                     />
                   </div>
                 )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Resumen rapido</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <span className="text-muted-foreground">Postulaciones</span>
+                <span className="font-semibold">{totalCount}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <span className="text-muted-foreground">Estado</span>
+                <Badge variant={project.status === "published" ? "default" : "secondary"}>
+                  {project.status === "published" ? "Activa" : "Inactiva"}
+                </Badge>
               </div>
             </CardContent>
           </Card>
@@ -343,63 +437,55 @@ export default function AdminProjectDetailsPage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" /> Empresarios
-                  Postulados
+                  <Users className="h-5 w-5 text-primary" /> Empresarios postulados
                 </CardTitle>
                 <CardDescription>
-                  Total: {applications.length} postulaciones
+                  Total: {totalCount} postulaciones
                 </CardDescription>
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={reportUi.exportExcelButton}
-                  onClick={exportToExcel}
-                  disabled={applications.length === 0}
-                >
-                  <Download className="h-4 w-4" />
-                  Excel
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={reportUi.exportPdfButton}
-                  onClick={exportToPDF}
-                  disabled={applications.length === 0}
-                >
-                  <FileText className="h-4 w-4" />
-                  PDF
-                </Button>
+                <ExportPdfButton onClick={exportToPDF} className={reportUi.exportPdfButton} disabled={totalCount === 0} />
               </div>
             </CardHeader>
             <CardContent>
-              {applications.length === 0 ? (
+              <div className="mb-4 grid gap-3 md:grid-cols-1">
+                <div className="relative md:col-span-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm"
+                    placeholder="Buscar por empresa, nombre o correo..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {loadingApplications ? (
                 <div className="py-8 text-center text-muted-foreground">
-                  Aún no hay empresarios postulados a este proyecto.
+                  Cargando postulaciones...
+                </div>
+              ) : applications.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  Aun no hay empresarios postulados a esta oportunidad.
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <ScrollArea className="h-[500px] pr-4">
+                  <ScrollArea className="h-125 pr-4">
                     <div className="space-y-4">
-                      {paginatedApplications.map((app) => (
-                        <Card key={app.id} className="bg-muted/30">
+                      {applications.map((app) => (
+                        <Card key={app.id} className="bg-muted/20 border-border/70">
                           <CardContent className="p-4">
                             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                               <div className="space-y-1 flex-1">
-                                <div className="font-semibold text-lg flex items-center justify-between">
+                                <div className="font-semibold text-base flex items-center gap-2">
+                                  <Building2 className="h-4 w-4 text-primary" />
                                   <span>
                                     {app.enterprise_name ||
                                       "Empresa Sin Nombre"}
                                   </span>
-                                  {app.capital_investment && (
-                                    <Badge className="bg-green-100 text-green-800 hover:bg-green-200 ml-2">
-                                      + $
-                                      {Number(
-                                        app.capital_investment,
-                                      ).toLocaleString()}
-                                    </Badge>
-                                  )}
                                 </div>
                                 <div className="text-sm font-medium">
                                   {app.full_name}
@@ -456,7 +542,7 @@ export default function AdminProjectDetailsPage() {
                           onClick={() =>
                             setCurrentPage((p) => Math.max(1, p - 1))
                           }
-                          disabled={currentPage === 1}
+                          disabled={currentPage === 1 || loadingApplications || !hasPrevious}
                         >
                           <ChevronLeft className="h-4 w-4" />
                           Anterior
@@ -465,9 +551,9 @@ export default function AdminProjectDetailsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            setCurrentPage((p) => Math.min(totalPages, p + 1))
+                            setCurrentPage((p) => (hasNext ? p + 1 : p))
                           }
-                          disabled={currentPage === totalPages}
+                          disabled={currentPage === totalPages || loadingApplications || !hasNext}
                         >
                           Siguiente
                           <ChevronRight className="h-4 w-4" />
@@ -481,6 +567,96 @@ export default function AdminProjectDetailsPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-170">
+          <DialogHeader>
+            <DialogTitle>Editar oportunidad</DialogTitle>
+            <DialogDescription>
+              Actualiza los datos de la oportunidad. Si desactivas, se conserva el historial de postulaciones.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label>Título</Label>
+              <Input value={editForm.title} onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Descripción</Label>
+              <Textarea
+                rows={4}
+                value={editForm.description}
+                onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Departamento</Label>
+                <Input value={editForm.department} onChange={(e) => setEditForm((p) => ({ ...p, department: e.target.value }))} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Municipio</Label>
+                <Input value={editForm.municipality} onChange={(e) => setEditForm((p) => ({ ...p, municipality: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Prioridad</Label>
+                <select
+                  className="h-10 rounded-md border px-3"
+                  value={editForm.priority}
+                  onChange={(e) => setEditForm((p) => ({ ...p, priority: e.target.value }))}
+                >
+                  <option value="Alta">Alta</option>
+                  <option value="Media">Media</option>
+                  <option value="Baja">Baja</option>
+                </select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Estado</Label>
+                <select
+                  className="h-10 rounded-md border px-3"
+                  value={editForm.status}
+                  onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))}
+                >
+                  <option value="published">Activo</option>
+                  <option value="draft">Desactivado</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Fecha de inicio</Label>
+                <Input
+                  type="date"
+                  min={todayStr()}
+                  value={editForm.start_date}
+                  onChange={(e) => setEditForm((p) => ({ ...p, start_date: e.target.value }))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Fecha de cierre</Label>
+                <Input
+                  type="date"
+                  min={editForm.start_date ? nextDayStr(editForm.start_date) : undefined}
+                  value={editForm.end_date}
+                  onChange={(e) => setEditForm((p) => ({ ...p, end_date: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingProject}>
+              Cancelar
+            </Button>
+            <Button onClick={saveProjectChanges} disabled={savingProject || !editForm.title.trim()}>
+              {savingProject ? "Guardando..." : "Guardar cambios"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
