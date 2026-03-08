@@ -183,7 +183,23 @@ class ProjectMainView(APIView):
         paginator = ProjectSetPagination()
         results = paginator.paginate_queryset(projects, request)
         serializer = ProjectSerializer(results, many=True, context={'request': request})
-        return paginator.get_paginated_response({'projects': serializer.data})
+        payload = serializer.data
+        if request.user.role == "enterprise":
+            project_ids = [item["id"] for item in payload]
+            applied_ids = set(
+                ProjectApplication.objects.filter(
+                    applicant=request.user,
+                    project_id__in=project_ids,
+                ).values_list("project_id", flat=True)
+            )
+            payload = [
+                {
+                    **item,
+                    "already_applied": item["id"] in applied_ids,
+                }
+                for item in payload
+            ]
+        return paginator.get_paginated_response({'projects': payload})
 
 class ApplyProjectView(APIView):
     permission_classes = [IsAuthenticated]
@@ -310,6 +326,9 @@ class LicitationView(APIView):
                     licitations = licitations.filter(
                         Q(title__icontains=search)
                         | Q(description__icontains=search)
+                        | Q(economic_sector__icontains=search)
+                        | Q(contracting_entity__icontains=search)
+                        | Q(required_company_type__icontains=search)
                         | Q(department__icontains=search)
                         | Q(municipality__icontains=search)
                     )
@@ -324,6 +343,8 @@ class LicitationView(APIView):
             return Response({'error': 'Only Admin can create licitations'}, status=status.HTTP_403_FORBIDDEN)
 
         data = request.data.copy()
+        if data.get('estimated_value') in ['undefined', '', None]:
+            data['estimated_value'] = 0
         if data.get('start_date') in ['undefined', '', None]:
             data.pop('start_date', None)
         if data.get('end_date') in ['undefined', '', None]:
@@ -354,6 +375,18 @@ class LicitationView(APIView):
                 licitation.title = data['title']
             if data.get('description') and data['description'] not in ['undefined', '']:
                 licitation.description = data['description']
+            if data.get('economic_sector') and data['economic_sector'] not in ['undefined', '']:
+                licitation.economic_sector = data['economic_sector']
+            if data.get('opportunity_type') and data['opportunity_type'] not in ['undefined', '']:
+                licitation.opportunity_type = data['opportunity_type']
+            if data.get('contracting_entity') and data['contracting_entity'] not in ['undefined', '']:
+                licitation.contracting_entity = data['contracting_entity']
+            if data.get('general_scope') and data['general_scope'] not in ['undefined', '']:
+                licitation.general_scope = data['general_scope']
+            if data.get('estimated_value') not in ['undefined', '', None]:
+                licitation.estimated_value = data['estimated_value']
+            if data.get('required_company_type') and data['required_company_type'] not in ['undefined', '']:
+                licitation.required_company_type = data['required_company_type']
             if data.get('department') and data['department'] not in ['undefined', '']:
                 licitation.department = data['department']
             if data.get('municipality') and data['municipality'] not in ['undefined', '']:
@@ -398,13 +431,33 @@ class LicitationMainView(APIView):
         search = (request.query_params.get("search") or "").strip()
         if search:
             licitations = licitations.filter(
-                Q(title__icontains=search) | Q(description__icontains=search)
+                Q(title__icontains=search)
+                | Q(description__icontains=search)
+                | Q(economic_sector__icontains=search)
+                | Q(contracting_entity__icontains=search)
+                | Q(required_company_type__icontains=search)
             )
 
         paginator = ProjectSetPagination()
         results = paginator.paginate_queryset(licitations, request)
         serializer = LicitationOpportunitySerializer(results, many=True, context={'request': request})
-        return paginator.get_paginated_response({'licitations': serializer.data})
+        payload = serializer.data
+        if request.user.role == "enterprise":
+            licitation_ids = [item["id"] for item in payload]
+            applied_ids = set(
+                LicitationApplication.objects.filter(
+                    applicant=request.user,
+                    licitation_id__in=licitation_ids,
+                ).values_list("licitation_id", flat=True)
+            )
+            payload = [
+                {
+                    **item,
+                    "already_applied": item["id"] in applied_ids,
+                }
+                for item in payload
+            ]
+        return paginator.get_paginated_response({'licitations': payload})
 
 
 class ApplyLicitationView(APIView):
@@ -442,6 +495,14 @@ class ApplyLicitationView(APIView):
             )
 
         data['applicant'] = request.user.id
+        if data.get('company_name') in [None, '', 'undefined']:
+            data['company_name'] = request.user.enterprise or request.user.username
+        if data.get('company_sector') in [None, '', 'undefined']:
+            try:
+                profile = request.user.userprofile
+                data['company_sector'] = profile.niche or ""
+            except Exception:
+                data['company_sector'] = ""
         serializer = LicitationApplicationSerializer(data=data)
         if serializer.is_valid():
             application = serializer.save()
@@ -469,6 +530,9 @@ class AdminLicitationApplicationsView(APIView):
                 Q(full_name__icontains=search)
                 | Q(email__icontains=search)
                 | Q(phone__icontains=search)
+                | Q(company_name__icontains=search)
+                | Q(company_sector__icontains=search)
+                | Q(interest_type__icontains=search)
                 | Q(licitation__title__icontains=search)
                 | Q(applicant__enterprise__icontains=search)
                 | Q(applicant__username__icontains=search)

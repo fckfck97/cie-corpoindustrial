@@ -47,6 +47,12 @@ export default function AdminCreateLicitationPage() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
+    economic_sector: "",
+    opportunity_type: "licitacion_publica",
+    contracting_entity: "",
+    general_scope: "",
+    estimated_value: "",
+    required_company_type: "",
     description: "",
     department: "",
     municipality: "",
@@ -73,8 +79,13 @@ export default function AdminCreateLicitationPage() {
 
   const validateForm = () => {
     if (!formData.title.trim()) return "El título es obligatorio";
+    if (!formData.economic_sector.trim()) return "El sector económico es obligatorio";
+    if (!formData.contracting_entity.trim()) return "La entidad contratante es obligatoria";
+    if (!formData.general_scope.trim()) return "El alcance general es obligatorio";
+    if (!formData.required_company_type.trim()) return "El tipo de empresa requerida es obligatorio";
     if (!formData.department) return "El departamento es obligatorio";
     if (!formData.municipality) return "El municipio es obligatorio";
+    if (!formData.estimated_value || Number(formData.estimated_value) < 0) return "El valor estimado debe ser válido";
     if (!formData.start_date || !formData.end_date) return "Debes seleccionar fecha de inicio y fecha de cierre";
     if (formData.start_date < todayStr()) return "La fecha de inicio no puede ser anterior a hoy";
     if (formData.end_date <= formData.start_date) return "La fecha de cierre debe ser posterior a la fecha de inicio";
@@ -131,7 +142,7 @@ export default function AdminCreateLicitationPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-2">
-              <Label htmlFor="title">Título *</Label>
+              <Label htmlFor="title">Nombre del proyecto *</Label>
               <Input
                 id="title"
                 value={formData.title}
@@ -140,8 +151,82 @@ export default function AdminCreateLicitationPage() {
               />
             </div>
 
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="economic_sector">Sector económico *</Label>
+                <Input
+                  id="economic_sector"
+                  value={formData.economic_sector}
+                  onChange={(e) => handleInputChange("economic_sector", e.target.value)}
+                  placeholder="Ej. Construcción, Tecnología, Salud..."
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Tipo de oportunidad *</Label>
+                <Select value={formData.opportunity_type} onValueChange={(val) => handleInputChange("opportunity_type", val)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="licitacion_publica">Licitación pública</SelectItem>
+                    <SelectItem value="contratacion_privada">Contratación privada</SelectItem>
+                    <SelectItem value="alianza_empresarial">Alianza empresarial</SelectItem>
+                    <SelectItem value="proyecto_inversion">Proyecto de inversión</SelectItem>
+                    <SelectItem value="proveedor_estrategico">Proveedor estratégico</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="contracting_entity">Entidad o empresa contratante *</Label>
+                <Input
+                  id="contracting_entity"
+                  value={formData.contracting_entity}
+                  onChange={(e) => handleInputChange("contracting_entity", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="required_company_type">Tipo de empresa requerida *</Label>
+                <Input
+                  id="required_company_type"
+                  value={formData.required_company_type}
+                  onChange={(e) => handleInputChange("required_company_type", e.target.value)}
+                  placeholder="Ej. Pyme industrial, integrador TIC..."
+                  required
+                />
+              </div>
+            </div>
+
             <div className="grid gap-2">
-              <Label htmlFor="description">Descripción</Label>
+              <Label htmlFor="general_scope">Alcance general del proyecto *</Label>
+              <Textarea
+                id="general_scope"
+                value={formData.general_scope}
+                onChange={(e) => handleInputChange("general_scope", e.target.value)}
+                rows={4}
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="estimated_value">Valor estimado del proyecto (COP) *</Label>
+              <Input
+                id="estimated_value"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.estimated_value}
+                onChange={(e) => handleInputChange("estimated_value", e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="description">Descripción adicional</Label>
               <Textarea
                 id="description"
                 value={formData.description}

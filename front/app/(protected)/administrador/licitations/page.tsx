@@ -18,6 +18,8 @@ import {
 type Licitation = {
   id: string;
   title: string;
+  economic_sector?: string;
+  opportunity_type?: string;
   department?: string;
   municipality?: string;
   status?: string;
@@ -83,7 +85,8 @@ export default function AdminLicitationsPage() {
               <table className="w-full text-sm">
                 <thead className="border-b bg-muted/50">
                   <tr className="text-left">
-                    <th className="p-3 font-semibold">Título</th>
+                    <th className="p-3 font-semibold">Proyecto</th>
+                    <th className="p-3 font-semibold">Sector / Tipo</th>
                     <th className="p-3 font-semibold">Ubicación</th>
                     <th className="p-3 font-semibold">Estado</th>
                     <th className="p-3 font-semibold">Postulaciones</th>
@@ -94,6 +97,9 @@ export default function AdminLicitationsPage() {
                   {licitations.map((item) => (
                     <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
                       <td className="p-3 font-medium">{item.title}</td>
+                      <td className="p-3 text-muted-foreground">
+                        {item.economic_sector || "-"} / {item.opportunity_type || "-"}
+                      </td>
                       <td className="p-3 text-muted-foreground">
                         {item.municipality || "-"}, {item.department || "-"}
                       </td>

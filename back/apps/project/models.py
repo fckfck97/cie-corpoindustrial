@@ -69,9 +69,26 @@ class LicitationOpportunity(models.Model):
         ("Media", "Media"),
         ("Alta", "Alta")
     )
+    options_opportunity_type = (
+        ("licitacion_publica", "Licitación pública"),
+        ("contratacion_privada", "Contratación privada"),
+        ("alianza_empresarial", "Alianza empresarial"),
+        ("proyecto_inversion", "Proyecto de inversión"),
+        ("proveedor_estrategico", "Proveedor estratégico"),
+    )
 
     id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
     title = models.CharField(max_length=255)
+    economic_sector = models.CharField(max_length=255, blank=True, null=True)
+    opportunity_type = models.CharField(
+        max_length=40,
+        choices=options_opportunity_type,
+        default="licitacion_publica",
+    )
+    contracting_entity = models.CharField(max_length=255, blank=True, null=True)
+    general_scope = models.TextField(blank=True, null=True)
+    estimated_value = models.DecimalField(max_digits=20, decimal_places=2, default=0)
+    required_company_type = models.CharField(max_length=255, blank=True, null=True)
     description = RichTextField(blank=True, null=True)
     department = models.CharField(max_length=255)
     municipality = models.CharField(max_length=255)
@@ -94,12 +111,26 @@ class LicitationOpportunity(models.Model):
 
 
 class LicitationApplication(models.Model):
+    options_interest_type = (
+        ("liderar", "Liderar"),
+        ("participar", "Participar"),
+        ("proveer", "Proveer"),
+    )
+
     id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
     licitation = models.ForeignKey(LicitationOpportunity, related_name='applications', on_delete=models.CASCADE)
     applicant = models.ForeignKey(User, related_name='licitation_applications', on_delete=models.SET_NULL, null=True, blank=True)
 
     full_name = models.CharField(max_length=255)
     email = models.EmailField()
+    company_name = models.CharField(max_length=255, blank=True, null=True)
+    company_sector = models.CharField(max_length=255, blank=True, null=True)
+    relevant_experience = models.TextField(blank=True, null=True)
+    interest_type = models.CharField(
+        max_length=20,
+        choices=options_interest_type,
+        default="participar",
+    )
     phone = models.CharField(max_length=50, blank=True, null=True)
     message = models.TextField(blank=True, null=True)
 

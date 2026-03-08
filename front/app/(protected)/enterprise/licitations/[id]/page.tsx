@@ -17,6 +17,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 type Licitation = {
   id: string;
   title: string;
+  economic_sector?: string;
+  opportunity_type?: string;
+  contracting_entity?: string;
+  general_scope?: string;
+  estimated_value?: string;
+  required_company_type?: string;
   description?: string;
   department?: string;
   municipality?: string;
@@ -28,6 +34,15 @@ type Licitation = {
   already_applied?: boolean;
 };
 
+type EnterpriseProfileApi = {
+  enterprise?: {
+    niche?: string;
+    user?: {
+      enterprise?: string;
+    };
+  };
+};
+
 export default function EnterpriseLicitationDetailsPage() {
   const router = useRouter();
   const params = useParams();
@@ -37,10 +52,18 @@ export default function EnterpriseLicitationDetailsPage() {
   const [licitation, setLicitation] = useState<Licitation | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [enterpriseDefaults, setEnterpriseDefaults] = useState({
+    company_name: "",
+    company_sector: "",
+  });
   const [applyForm, setApplyForm] = useState({
     full_name: user?.firstName ? `${user.firstName} ${user.lastName || ""}` : "",
     email: user?.email || "",
     phone: user?.phone || "",
+    company_name: user?.enterprise || "",
+    company_sector: "",
+    relevant_experience: "",
+    interest_type: "",
     message: "",
   });
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -61,9 +84,45 @@ export default function EnterpriseLicitationDetailsPage() {
     if (licitationId) loadData();
   }, [licitationId]);
 
+  useEffect(() => {
+    const loadEnterpriseDefaults = async () => {
+      if (!user?.id) return;
+      try {
+        const response = await apiClient.get<EnterpriseProfileApi>(`/enterprise/profile/${user.id}/`);
+        const enterprise = response?.enterprise;
+        setEnterpriseDefaults({
+          company_name: enterprise?.user?.enterprise || user.enterprise || "",
+          company_sector: enterprise?.niche || "",
+        });
+      } catch {
+        setEnterpriseDefaults({
+          company_name: user.enterprise || "",
+          company_sector: "",
+        });
+      }
+    };
+    loadEnterpriseDefaults();
+  }, [user?.id, user?.enterprise]);
+
+  useEffect(() => {
+    if (!user) return;
+    setApplyForm((prev) => ({
+      ...prev,
+      full_name: prev.full_name || `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+      email: prev.email || user.email || "",
+      phone: prev.phone || user.phone || "",
+      company_name: prev.company_name || enterpriseDefaults.company_name || user.enterprise || "",
+      company_sector: prev.company_sector || enterpriseDefaults.company_sector || "",
+    }));
+  }, [user, enterpriseDefaults.company_name, enterpriseDefaults.company_sector]);
+
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!applyForm.full_name || !applyForm.email) return toast.error("Nombre y correo son obligatorios");
+    if (!applyForm.company_name.trim()) return toast.error("El nombre de empresa es obligatorio");
+    if (!applyForm.company_sector.trim()) return toast.error("El sector de la empresa es obligatorio");
+    if (!applyForm.relevant_experience.trim()) return toast.error("La experiencia relevante es obligatoria");
+    if (!applyForm.interest_type.trim()) return toast.error("Debes seleccionar un tipo de interes");
 
     setSubmitting(true);
     try {
@@ -103,6 +162,13 @@ export default function EnterpriseLicitationDetailsPage() {
   const notStarted = startDate ? startDate > now : false;
   const closed = endDate ? endDate < now : false;
   const canApply = !licitation.already_applied && !notStarted && !closed;
+  const opportunityTypeLabel: Record<string, string> = {
+    licitacion_publica: "Licitación pública",
+    contratacion_privada: "Contratación privada",
+    alianza_empresarial: "Alianza empresarial",
+    proyecto_inversion: "Proyecto de inversión",
+    proveedor_estrategico: "Proveedor estratégico",
+  };
 
   return (
     <DashboardLayout>
@@ -145,6 +211,23 @@ export default function EnterpriseLicitationDetailsPage() {
                     <div className="text-muted-foreground prose prose-sm max-w-none prose-p:leading-relaxed" dangerouslySetInnerHTML={{ __html: licitation.description }} />
                   </div>
                 )}
+
+                <div className="pt-6 border-t">
+                  <h3 className="font-bold text-lg mb-4">Datos de la oportunidad</h3>
+                  <div className="grid md:grid-cols-2 gap-3 text-sm">
+                    <div><span className="font-semibold">Sector económico:</span> {licitation.economic_sector || "-"}</div>
+                    <div><span className="font-semibold">Tipo de oportunidad:</span> {opportunityTypeLabel[licitation.opportunity_type || ""] || "-"}</div>
+                    <div><span className="font-semibold">Entidad contratante:</span> {licitation.contracting_entity || "-"}</div>
+                    <div><span className="font-semibold">Tipo empresa requerida:</span> {licitation.required_company_type || "-"}</div>
+                    <div><span className="font-semibold">Valor estimado:</span> {licitation.estimated_value ? `$${Number(licitation.estimated_value).toLocaleString("es-CO")}` : "-"}</div>
+                  </div>
+                  {licitation.general_scope && (
+                    <div className="mt-3">
+                      <p className="font-semibold mb-1">Alcance general del proyecto:</p>
+                      <p className="text-muted-foreground whitespace-pre-wrap">{licitation.general_scope}</p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -176,7 +259,7 @@ export default function EnterpriseLicitationDetailsPage() {
                       </div>
                     ) : canApply ? (
                       <Button size="lg" className="w-full gap-2 font-semibold text-md" onClick={() => setIsApplyModalOpen(true)}>
-                        Me interesa postularme <Send className="h-4 w-4" />
+                        APLICAR A ESTE PROYECTO <Send className="h-4 w-4" />
                       </Button>
                     ) : (
                       <div className="bg-amber-100 text-amber-800 p-4 rounded-md text-sm font-semibold">
@@ -199,7 +282,40 @@ export default function EnterpriseLicitationDetailsPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleApply} className="space-y-4 py-4">
+
               <div className="grid gap-2">
+                <Label htmlFor="name" className="text-muted-foreground">Tu Nombre</Label>
+                <Input id="name" value={applyForm.full_name} disabled className="bg-muted/50" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="company_name">Nombre de empresa *</Label>
+                <Input
+                  id="company_name"
+                  value={applyForm.company_name}
+                  disabled
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="company_sector">Sector de empresa *</Label>
+                <Input
+                  id="company_sector"
+                  value={applyForm.company_sector}
+                  disabled
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="relevant_experience">Experiencia relevante *</Label>
+                <Textarea
+                  id="relevant_experience"
+                  rows={3}
+                  value={applyForm.relevant_experience}
+                  onChange={(e) => setApplyForm({ ...applyForm, relevant_experience: e.target.value })}
+                  required
+                />
+              </div>
+                            <div className="grid gap-2">
                 <Label htmlFor="message">Mensaje / Motivación *</Label>
                 <Textarea
                   id="message"
@@ -211,8 +327,21 @@ export default function EnterpriseLicitationDetailsPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="name" className="text-muted-foreground">Tu Nombre</Label>
-                <Input id="name" value={applyForm.full_name} disabled className="bg-muted/50" />
+                <Label htmlFor="interest_type">Interés *</Label>
+                <select
+                  id="interest_type"
+                  required
+                  className="h-10 rounded-md border bg-background px-3 text-sm"
+                  value={applyForm.interest_type}
+                  onChange={(e) => setApplyForm({ ...applyForm, interest_type: e.target.value })}
+                >
+                  <option value="" disabled>
+                    Selecciona una opción
+                  </option>
+                  <option value="liderar">Liderar</option>
+                  <option value="participar">Participar</option>
+                  <option value="proveer">Proveer</option>
+                </select>
               </div>
               <DialogFooter className="pt-4 border-t mt-4">
                 <Button variant="outline" type="button" onClick={() => setIsApplyModalOpen(false)}>Cancelar</Button>

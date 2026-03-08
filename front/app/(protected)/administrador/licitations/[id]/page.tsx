@@ -39,6 +39,12 @@ import {
 type Licitation = {
   id: string;
   title: string;
+  economic_sector?: string;
+  opportunity_type?: string;
+  contracting_entity?: string;
+  general_scope?: string;
+  estimated_value?: string;
+  required_company_type?: string;
   description?: string;
   department?: string;
   municipality?: string;
@@ -53,6 +59,10 @@ type Application = {
   id: string;
   full_name: string;
   email: string;
+  company_name?: string;
+  company_sector?: string;
+  relevant_experience?: string;
+  interest_type?: string;
   phone?: string;
   message?: string;
   created_at: string;
@@ -82,6 +92,23 @@ const nextDayStr = (dateStr: string) => {
   date.setDate(date.getDate() + 1);
   return formatLocalDate(date);
 };
+const OPPORTUNITY_TYPE_LABEL: Record<string, string> = {
+  licitacion_publica: "Licitacion publica",
+  contratacion_privada: "Contratacion privada",
+  alianza_empresarial: "Alianza empresarial",
+  proyecto_inversion: "Proyecto de inversion",
+  proveedor_estrategico: "Proveedor estrategico",
+};
+const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+const htmlSafe = (value: unknown) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+const dateTimeLabel = (value?: string) =>
+  value ? new Date(value).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" }) : "-";
 
 export default function AdminLicitationDetailsPage() {
   const router = useRouter();
@@ -104,6 +131,12 @@ export default function AdminLicitationDetailsPage() {
   const [savingLicitation, setSavingLicitation] = useState(false);
   const [editForm, setEditForm] = useState({
     title: "",
+    economic_sector: "",
+    opportunity_type: "licitacion_publica",
+    contracting_entity: "",
+    general_scope: "",
+    estimated_value: "",
+    required_company_type: "",
     description: "",
     department: "",
     municipality: "",
@@ -166,6 +199,12 @@ export default function AdminLicitationDetailsPage() {
     if (!licitation) return;
     setEditForm({
       title: licitation.title || "",
+      economic_sector: licitation.economic_sector || "",
+      opportunity_type: licitation.opportunity_type || "licitacion_publica",
+      contracting_entity: licitation.contracting_entity || "",
+      general_scope: licitation.general_scope || "",
+      estimated_value: licitation.estimated_value || "",
+      required_company_type: licitation.required_company_type || "",
       description: licitation.description || "",
       department: licitation.department || "",
       municipality: licitation.municipality || "",
@@ -206,6 +245,12 @@ export default function AdminLicitationDetailsPage() {
       const body = new FormData();
       body.append("id", licitation.id);
       body.append("title", editForm.title);
+      body.append("economic_sector", editForm.economic_sector);
+      body.append("opportunity_type", editForm.opportunity_type);
+      body.append("contracting_entity", editForm.contracting_entity);
+      body.append("general_scope", editForm.general_scope);
+      body.append("estimated_value", editForm.estimated_value || "0");
+      body.append("required_company_type", editForm.required_company_type);
       body.append("description", editForm.description);
       body.append("department", editForm.department);
       body.append("municipality", editForm.municipality);
@@ -245,17 +290,47 @@ export default function AdminLicitationDetailsPage() {
       const exportRows = await fetchApplicationsForExport();
       if (exportRows.length === 0) return toast.error("No hay postulaciones para exportar");
 
-      const headers = ["Empresa", "Representante", "Correo", "Teléfono", "Mensaje", "Fecha de Postulación"];
+      const metadataRows = [
+        ["Reporte", "Postulaciones de Licitacion"],
+        ["Licitacion", licitation?.title || "-"],
+        ["Sector economico", licitation?.economic_sector || "-"],
+        ["Tipo de oportunidad", OPPORTUNITY_TYPE_LABEL[licitation?.opportunity_type || ""] || "-"],
+        ["Entidad contratante", licitation?.contracting_entity || "-"],
+        ["Tipo de empresa requerida", licitation?.required_company_type || "-"],
+        ["Valor estimado", licitation?.estimated_value ? `$${Number(licitation.estimated_value).toLocaleString("es-CO")}` : "-"],
+        ["Ubicacion", `${licitation?.municipality || "-"}, ${licitation?.department || "-"}`],
+        ["Fecha inicio", dateTimeLabel(licitation?.start_date)],
+        ["Fecha cierre", dateTimeLabel(licitation?.end_date)],
+        ["Total postulaciones", String(exportRows.length)],
+        ["Filtro busqueda", searchTerm || "Sin filtro"],
+        ["Fecha generacion", new Date().toLocaleString("es-CO")],
+      ];
+      const headers = [
+        "Empresa postulante",
+        "Sector economico empresa",
+        "Interes",
+        "Representante",
+        "Correo",
+        "Telefono",
+        "Experiencia relevante",
+        "Mensaje de interes",
+        "Fecha de postulacion",
+      ];
       const csvContent = [
+        ...metadataRows.map((row) => row.map((cell) => csvCell(cell)).join(",")),
+        "",
         headers.join(","),
         ...exportRows.map((app) =>
           [
-            `"${(app.enterprise_name || "Sin Empresa").replace(/"/g, '""')}"`,
-            `"${app.full_name.replace(/"/g, '""')}"`,
-            `"${app.email}"`,
-            `"${app.phone || ""}"`,
-            `"${(app.message || "").replace(/"/g, '""')}"`,
-            `"${new Date(app.created_at).toLocaleDateString("es-ES")}"`,
+            csvCell(app.company_name || app.enterprise_name || "Sin empresa"),
+            csvCell(app.company_sector || ""),
+            csvCell(app.interest_type || ""),
+            csvCell(app.full_name),
+            csvCell(app.email),
+            csvCell(app.phone || ""),
+            csvCell(app.relevant_experience || ""),
+            csvCell(app.message || ""),
+            csvCell(dateTimeLabel(app.created_at)),
           ].join(","),
         ),
       ].join("\n");
@@ -277,48 +352,105 @@ export default function AdminLicitationDetailsPage() {
 
       const printWindow = window.open("", "_blank");
       if (!printWindow) return;
+      const generatedAt = new Date().toLocaleString("es-CO");
+      const licitationType = OPPORTUNITY_TYPE_LABEL[licitation?.opportunity_type || ""] || "-";
       printWindow.document.write(`
       <html>
         <head>
-          <title>Reporte de Postulaciones - ${licitation?.title}</title>
+          <title>Reporte de Postulaciones - ${htmlSafe(licitation?.title || "Licitacion")}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-            th { background-color: #f4f4f4; }
+            @page { size: A4 landscape; margin: 14mm; }
+            body { font-family: "Segoe UI", Arial, sans-serif; color: #0f172a; }
+            .header {
+              border: 1px solid #dbeafe;
+              background: linear-gradient(90deg, #eff6ff, #f8fafc);
+              border-radius: 12px;
+              padding: 14px 16px;
+              margin-bottom: 12px;
+            }
+            .title { font-size: 20px; font-weight: 800; margin: 0 0 6px 0; }
+            .subtitle { margin: 0; font-size: 12px; color: #475569; }
+            .meta-grid {
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 10px;
+              margin: 12px 0;
+            }
+            .meta {
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 8px 10px;
+              background: #f8fafc;
+            }
+            .meta .k { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: .04em; }
+            .meta .v { font-size: 12px; margin-top: 3px; font-weight: 600; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; }
+            th, td {
+              border: 1px solid #e2e8f0;
+              padding: 8px;
+              text-align: left;
+              vertical-align: top;
+              font-size: 10px;
+              word-wrap: break-word;
+              white-space: pre-wrap;
+            }
+            th { background-color: #eff6ff; font-weight: 700; }
+            .small { font-size: 9px; color: #64748b; margin-top: 6px; }
           </style>
         </head>
         <body>
-          <h1>Reporte de Postulaciones a Licitación</h1>
-          <h2>Licitación: ${licitation?.title}</h2>
-          <p><strong>Total postulaciones (filtro aplicado):</strong> ${exportRows.length}</p>
-          <p><strong>Búsqueda:</strong> ${searchTerm || "Sin filtro"}</p>
+          <div class="header">
+            <p class="title">Reporte de Postulaciones a Licitacion</p>
+            <p class="subtitle">Generado el ${htmlSafe(generatedAt)} - Total postulaciones: ${exportRows.length}</p>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta"><div class="k">Licitacion</div><div class="v">${htmlSafe(licitation?.title || "-")}</div></div>
+            <div class="meta"><div class="k">Tipo de oportunidad</div><div class="v">${htmlSafe(licitationType)}</div></div>
+            <div class="meta"><div class="k">Sector economico</div><div class="v">${htmlSafe(licitation?.economic_sector || "-")}</div></div>
+            <div class="meta"><div class="k">Entidad contratante</div><div class="v">${htmlSafe(licitation?.contracting_entity || "-")}</div></div>
+            <div class="meta"><div class="k">Tipo empresa requerida</div><div class="v">${htmlSafe(licitation?.required_company_type || "-")}</div></div>
+            <div class="meta"><div class="k">Valor estimado</div><div class="v">${htmlSafe(licitation?.estimated_value ? `$${Number(licitation.estimated_value).toLocaleString("es-CO")}` : "-")}</div></div>
+            <div class="meta"><div class="k">Ubicacion</div><div class="v">${htmlSafe(`${licitation?.municipality || "-"}, ${licitation?.department || "-"}`)}</div></div>
+            <div class="meta"><div class="k">Inicio</div><div class="v">${htmlSafe(dateTimeLabel(licitation?.start_date))}</div></div>
+            <div class="meta"><div class="k">Cierre</div><div class="v">${htmlSafe(dateTimeLabel(licitation?.end_date))}</div></div>
+          </div>
+
           <table>
             <thead>
               <tr>
+                <th>#</th>
                 <th>Empresa</th>
+                <th>Sector</th>
+                <th>Interés</th>
                 <th>Representante</th>
                 <th>Correo</th>
                 <th>Teléfono</th>
-                <th>Fecha</th>
+                <th>Experiencia relevante</th>
+                <th>Mensaje de interés</th>
+                <th>Fecha postulación</th>
               </tr>
             </thead>
             <tbody>
               ${exportRows
-                .map(
-                  (app) => `
+                .map((app, index) => `
                 <tr>
-                  <td>${app.enterprise_name || "Sin Empresa"}</td>
-                  <td>${app.full_name}</td>
-                  <td>${app.email}</td>
-                  <td>${app.phone || ""}</td>
-                  <td>${new Date(app.created_at).toLocaleDateString("es-ES")}</td>
+                  <td>${index + 1}</td>
+                  <td>${htmlSafe(app.company_name || app.enterprise_name || "Sin empresa")}</td>
+                  <td>${htmlSafe(app.company_sector || "")}</td>
+                  <td>${htmlSafe(app.interest_type || "")}</td>
+                  <td>${htmlSafe(app.full_name)}</td>
+                  <td>${htmlSafe(app.email)}</td>
+                  <td>${htmlSafe(app.phone || "")}</td>
+                  <td>${htmlSafe(app.relevant_experience || "")}</td>
+                  <td>${htmlSafe(app.message || "")}</td>
+                  <td>${htmlSafe(dateTimeLabel(app.created_at))}</td>
                 </tr>
-              `,
-                )
+              `)
                 .join("")}
             </tbody>
           </table>
+          <p class="small">Filtro aplicado: ${htmlSafe(searchTerm || "Sin filtro")}</p>
         </body>
       </html>`);
       printWindow.document.close();
@@ -332,6 +464,7 @@ export default function AdminLicitationDetailsPage() {
 
   if (loading) return <div className="py-10 text-center text-muted-foreground">Cargando detalles...</div>;
   if (!licitation) return <div className="py-10 text-center text-muted-foreground">Licitación no encontrada</div>;
+  const opportunityTypeLabel = OPPORTUNITY_TYPE_LABEL;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -369,6 +502,13 @@ export default function AdminLicitationDetailsPage() {
               </div>
 
               <div className="space-y-2 text-sm">
+                <div className="text-xs text-muted-foreground rounded-md border bg-muted/30 p-3 space-y-1">
+                  <div>Sector económico: {licitation.economic_sector || "-"}</div>
+                  <div>Tipo oportunidad: {opportunityTypeLabel[licitation.opportunity_type || ""] || "-"}</div>
+                  <div>Entidad contratante: {licitation.contracting_entity || "-"}</div>
+                  <div>Tipo empresa requerida: {licitation.required_company_type || "-"}</div>
+                  <div>Valor estimado: {licitation.estimated_value ? `$${Number(licitation.estimated_value).toLocaleString("es-CO")}` : "-"}</div>
+                </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MapPin className="h-4 w-4" />
                   <span>{licitation.municipality}, {licitation.department}</span>
@@ -378,6 +518,13 @@ export default function AdminLicitationDetailsPage() {
                   <div>Cierre: {licitation.end_date ? new Date(licitation.end_date).toLocaleDateString("es-CO") : "-"}</div>
                 </div>
               </div>
+
+              {licitation.general_scope && (
+                <div className="pt-2 border-t">
+                  <h3 className="font-semibold mb-2">Alcance general</h3>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{licitation.general_scope}</p>
+                </div>
+              )}
 
               {licitation.description && (
                 <div className="pt-2 border-t">
@@ -421,14 +568,7 @@ export default function AdminLicitationDetailsPage() {
                     }}
                   />
                 </div>
-                <div className="grid gap-1">
-                  <label className="text-xs text-muted-foreground">Fecha inicio</label>
-                  <input type="date" className="h-10 rounded-md border bg-background px-3 text-sm" value={dateStart} onChange={(e) => { setDateStart(e.target.value); setCurrentPage(1); }} />
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-xs text-muted-foreground">Fecha cierre</label>
-                  <input type="date" className="h-10 rounded-md border bg-background px-3 text-sm" value={dateEnd} onChange={(e) => { setDateEnd(e.target.value); setCurrentPage(1); }} />
-                </div>
+
               </div>
 
               {loadingApplications ? (
@@ -444,7 +584,9 @@ export default function AdminLicitationDetailsPage() {
                           <CardContent className="p-4">
                             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                               <div className="space-y-1 flex-1">
-                                <div className="font-semibold text-lg">{app.enterprise_name || "Empresa Sin Nombre"}</div>
+                                <div className="font-semibold text-lg">{app.company_name || app.enterprise_name || "Empresa Sin Nombre"}</div>
+                                {app.company_sector && <div className="text-sm text-muted-foreground">Sector: {app.company_sector}</div>}
+                                {app.interest_type && <div className="text-sm text-muted-foreground">Interés: {app.interest_type}</div>}
                                 <div className="text-sm font-medium">{app.full_name}</div>
                                 <div className="flex flex-col gap-1 mt-2 text-sm text-muted-foreground">
                                   <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> {app.email}</div>
@@ -459,6 +601,12 @@ export default function AdminLicitationDetailsPage() {
                                 <div className="flex-1 bg-background p-3 rounded-md text-sm border">
                                   <p className="font-semibold mb-1 text-xs text-muted-foreground">Mensaje de interés:</p>
                                   <p className="italic">"{app.message}"</p>
+                                </div>
+                              )}
+                              {app.relevant_experience && (
+                                <div className="flex-1 bg-background p-3 rounded-md text-sm border">
+                                  <p className="font-semibold mb-1 text-xs text-muted-foreground">Experiencia relevante:</p>
+                                  <p className="italic">"{app.relevant_experience}"</p>
                                 </div>
                               )}
                             </div>
@@ -496,8 +644,42 @@ export default function AdminLicitationDetailsPage() {
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
-              <Label>Título</Label>
+              <Label>Nombre del proyecto</Label>
               <Input value={editForm.title} onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))} />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Sector económico</Label>
+                <Input value={editForm.economic_sector} onChange={(e) => setEditForm((p) => ({ ...p, economic_sector: e.target.value }))} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Tipo oportunidad</Label>
+                <select className="h-10 rounded-md border px-3" value={editForm.opportunity_type} onChange={(e) => setEditForm((p) => ({ ...p, opportunity_type: e.target.value }))}>
+                  <option value="licitacion_publica">Licitación pública</option>
+                  <option value="contratacion_privada">Contratación privada</option>
+                  <option value="alianza_empresarial">Alianza empresarial</option>
+                  <option value="proyecto_inversion">Proyecto de inversión</option>
+                  <option value="proveedor_estrategico">Proveedor estratégico</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Entidad o empresa contratante</Label>
+                <Input value={editForm.contracting_entity} onChange={(e) => setEditForm((p) => ({ ...p, contracting_entity: e.target.value }))} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Tipo de empresa requerida</Label>
+                <Input value={editForm.required_company_type} onChange={(e) => setEditForm((p) => ({ ...p, required_company_type: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Alcance general del proyecto</Label>
+              <Textarea rows={3} value={editForm.general_scope} onChange={(e) => setEditForm((p) => ({ ...p, general_scope: e.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Valor estimado (COP)</Label>
+              <Input type="number" min="0" step="0.01" value={editForm.estimated_value} onChange={(e) => setEditForm((p) => ({ ...p, estimated_value: e.target.value }))} />
             </div>
             <div className="grid gap-2">
               <Label>Descripción</Label>

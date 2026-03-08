@@ -16,12 +16,15 @@ import { PaginationControls } from "@/components/PaginationControls";
 type Licitation = {
   id: string;
   title: string;
+  economic_sector?: string;
+  opportunity_type?: string;
   description?: string;
   department?: string;
   municipality?: string;
   priority?: string;
   status?: string;
   created?: string;
+  already_applied?: boolean;
 };
 
 type LicitationsResponse = {
@@ -42,6 +45,13 @@ export default function EnterpriseLicitationsPage() {
   const [totalLicitations, setTotalLicitations] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
+  const opportunityTypeLabel: Record<string, string> = {
+    licitacion_publica: "Licitación pública",
+    contratacion_privada: "Contratación privada",
+    alianza_empresarial: "Alianza empresarial",
+    proyecto_inversion: "Proyecto de inversión",
+    proveedor_estrategico: "Proveedor estratégico",
+  };
 
   const loadLicitations = async (search: string = "", page: number = 1) => {
     setLoading(true);
@@ -113,12 +123,20 @@ export default function EnterpriseLicitationsPage() {
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-2 mb-2">
                       <Badge variant="outline" className="text-xs">Prioridad {item.priority}</Badge>
+                      {item.already_applied && (
+                        <Badge className="text-xs bg-green-100 text-green-700 hover:bg-green-100">
+                          Ya te postulaste a esta
+                        </Badge>
+                      )}
                     </div>
                     <CardTitle className="line-clamp-2 text-lg hover:text-primary cursor-pointer transition-colors" onClick={() => router.push(`/enterprise/licitations/${item.id}`)}>
                       {item.title}
                     </CardTitle>
                     <CardDescription className="flex items-center gap-1 mt-1">
                       <MapPin className="h-3 w-3" /> {item.municipality}, {item.department}
+                    </CardDescription>
+                    <CardDescription className="mt-1">
+                      {opportunityTypeLabel[item.opportunity_type || ""] || "Tipo no definido"} · {item.economic_sector || "Sector no definido"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex-1">
@@ -127,8 +145,12 @@ export default function EnterpriseLicitationsPage() {
                     )}
                   </CardContent>
                   <CardFooter className="pt-0 border-t p-4 mt-auto">
-                    <Button className="w-full gap-2" onClick={() => router.push(`/enterprise/licitations/${item.id}`)}>
-                      Ver Licitación <ArrowRight className="h-4 w-4" />
+                    <Button
+                      className="w-full gap-2"
+                      variant={item.already_applied ? "outline" : "default"}
+                      onClick={() => router.push(`/enterprise/licitations/${item.id}`)}
+                    >
+                      {item.already_applied ? "Ver postulación" : "Ver Licitación"} <ArrowRight className="h-4 w-4" />
                     </Button>
                   </CardFooter>
                 </Card>

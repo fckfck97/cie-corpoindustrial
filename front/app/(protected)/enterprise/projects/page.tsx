@@ -29,6 +29,7 @@ type Project = {
   priority?: string;
   status?: string;
   created?: string;
+  already_applied?: boolean;
 };
 
 type ProjectsResponse = {
@@ -97,6 +98,30 @@ export default function EnterpriseProjectsPage() {
           </p>
         </div>
 
+        <Card>
+          <CardContent className="pt-6">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-5 md:p-6">
+              <h2 className="text-base font-bold text-primary md:text-lg">Sobre la Bolsa de Amigos Corpoindustrial</h2>
+              <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+                La Bolsa de Amigos es un espacio exclusivo para empresarios afiliados a Corpoindustrial
+                interesados en explorar oportunidades de inversión conjunta. A través de este mecanismo,
+                los empresarios pueden sumar esfuerzos y capital para participar en proyectos que, por su
+                escala o alcance, pueden requerir la participación de varios actores.
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-foreground/90">
+                Cuando exista una oportunidad de inversión, esta sección se activará para que los afiliados
+                interesados apliquen a una reunión privada de presentación, donde se compartirá la
+                información general del proyecto.
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-foreground/90">
+                La participación es voluntaria, confidencial y reservada para los empresarios que decidan
+                explorar la iniciativa. Este espacio busca fortalecer la confianza empresarial y abrir
+                nuevas oportunidades de crecimiento dentro del ecosistema Corpoindustrial.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex gap-2 bg-card p-2 rounded-lg border shadow-sm items-center max-w-md">
           <Search className="h-5 w-5 ml-2 text-muted-foreground" />
           <Input
@@ -131,6 +156,11 @@ export default function EnterpriseProjectsPage() {
                       <Badge variant="outline" className="text-xs">
                         Prioridad {project.priority}
                       </Badge>
+                      {project.already_applied && (
+                        <Badge className="text-xs bg-green-100 text-green-700 hover:bg-green-100">
+                          Ya te postulaste a esta
+                        </Badge>
+                      )}
                     </div>
                     <CardTitle
                       className="line-clamp-2 text-lg hover:text-primary cursor-pointer transition-colors"
@@ -159,8 +189,9 @@ export default function EnterpriseProjectsPage() {
                       onClick={() =>
                         router.push(`/enterprise/projects/${project.id}`)
                       }
+                      variant={project.already_applied ? "outline" : "default"}
                     >
-                      Ver Oportunidad <ArrowRight className="h-4 w-4" />
+                      {project.already_applied ? "Ver postulación" : "Ver Oportunidad"} <ArrowRight className="h-4 w-4" />
                     </Button>
                   </CardFooter>
                 </Card>
