@@ -32,6 +32,7 @@ from apps.products.models import Product
 from apps.job.models import JobBoard
 from django.db.models import Case, When, Value, IntegerField, Q, Count
 import re
+from urllib.parse import quote
 from apps.products.serializers import EmployeeBenefitListSerializer
 from apps.job.serializers import EmployeeJobListSerializer
 from .utils.sendOTP import send_sms_in_background
@@ -102,6 +103,22 @@ def validate_unique_phone(phone_raw, current_user_id=None):
             "El número de teléfono ingresado pertenece a un usuario ya registrado en el portal."
         )
     return normalized_phone
+
+
+def _parse_coordinate(raw_value, field_name):
+    if raw_value in [None, "", "undefined"]:
+        return None
+
+    try:
+        value = Decimal(str(raw_value).strip())
+    except (InvalidOperation, ValueError, TypeError):
+        raise ValueError(f"{field_name} inválida. Usa un valor numérico.")
+
+    if field_name == "latitude" and (value < Decimal("-90") or value > Decimal("90")):
+        raise ValueError("La latitud debe estar entre -90 y 90.")
+    if field_name == "longitude" and (value < Decimal("-180") or value > Decimal("180")):
+        raise ValueError("La longitud debe estar entre -180 y 180.")
+    return value
 
 
 def _enterprise_profile_is_complete(enterprise: UserAccount):
@@ -186,11 +203,42 @@ class UserView(APIView):
                 serializer = UserSerializer(results, many=True)
                 return paginator.get_paginated_response({'employees': serializer.data})
             elif request.user.role == 'Admin':
-                employees = UserAccount.objects.filter(role='enterprise').order_by('-date_joined')
+                employees = (
+                    UserAccount.objects
+                    .filter(role='enterprise')
+                    .annotate(benefits_count=Count("products", distinct=True))
+                    .order_by('-date_joined')
+                )
                 paginator = SmallSetPagination()
                 results = paginator.paginate_queryset(employees, request)
                 serializer = UserSerializer(results, many=True)
-                return paginator.get_paginated_response({'employees': serializer.data})
+                serialized = serializer.data
+
+                frontend_origin = request.META.get("HTTP_ORIGIN")
+                benefits_count_map = {
+                    str(enterprise.id): int(getattr(enterprise, "benefits_count", 0) or 0)
+                    for enterprise in results
+                }
+                for item in serialized:
+                    enterprise_id = str(item.get("id"))
+                    benefits_count = benefits_count_map.get(enterprise_id, 0)
+                    has_benefits = benefits_count > 0
+                    item["benefits_count"] = benefits_count
+                    item["has_benefits"] = has_benefits
+
+                    if has_benefits:
+                        benefits_path = f"/employees/benefits?enterprise_id={enterprise_id}&benefit=1&source=qr"
+                        login_path = f"/login?next={quote(benefits_path, safe='')}"
+                        login_url = (
+                            f"{frontend_origin}{login_path}"
+                            if frontend_origin
+                            else request.build_absolute_uri(login_path)
+                        )
+                        item["qr_payload"] = login_url
+                    else:
+                        item["qr_payload"] = None
+
+                return paginator.get_paginated_response({'employees': serialized})
             else:
                 return Response({'error': 'user does not have permission'}, status=status.HTTP_404_NOT_FOUND)
     
@@ -318,6 +366,8 @@ class UserView(APIView):
             "description",
             "niche",
             "address",
+            "latitude",
+            "longitude",
             "facebook",
             "instagram",
             "X",
@@ -329,6 +379,21 @@ class UserView(APIView):
                 profile_payload[field] = value
             if field in data:
                 data.pop(field)
+
+        if actor.role == "Admin":
+            try:
+                latitude = _parse_coordinate(profile_payload.get("latitude"), "latitude")
+                longitude = _parse_coordinate(profile_payload.get("longitude"), "longitude")
+            except ValueError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+            if latitude is None or longitude is None:
+                return Response(
+                    {"error": "Latitud y longitud son obligatorias para crear la empresa."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            profile_payload["latitude"] = latitude
+            profile_payload["longitude"] = longitude
 
         serializer = UserCreateByRoleSerializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -509,6 +574,28 @@ class EnterprisesProfile(APIView):
                     return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
             if data.get('address') and data['address'] not in ['undefined', '']:
                 enterprise.address = data['address']
+            latitude_in_payload = data.get("latitude")
+            longitude_in_payload = data.get("longitude")
+            if actor.role == "enterprise" and (
+                latitude_in_payload not in [None, "", "undefined"]
+                or longitude_in_payload not in [None, "", "undefined"]
+            ):
+                return Response(
+                    {"error": "No tienes permisos para editar latitud/longitud."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            if actor.role == "Admin":
+                if latitude_in_payload not in [None, "", "undefined"]:
+                    try:
+                        enterprise.latitude = _parse_coordinate(latitude_in_payload, "latitude")
+                    except ValueError as exc:
+                        return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+                if longitude_in_payload not in [None, "", "undefined"]:
+                    try:
+                        enterprise.longitude = _parse_coordinate(longitude_in_payload, "longitude")
+                    except ValueError as exc:
+                        return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
             if data.get('facebook') and data['facebook'] not in ['undefined', '']:
                 enterprise.facebook = data['facebook']
             if data.get('instagram') and data['instagram'] not in ['undefined', '']:
@@ -640,6 +727,37 @@ class EmployeeDashboardView(APIView):
             },
         }
         return Response(payload, status=status.HTTP_200_OK)
+
+
+class AdminEnterpriseMapView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        if request.user.role != "Admin":
+            return Response(
+                {"detail": "Solo admin."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        enterprises = (
+            UserAccount.objects.filter(role="enterprise", is_active=True)
+            .select_related("userprofile")
+            .annotate(
+                jobs_count=Count("job_board", filter=Q(job_board__status="published"), distinct=True),
+                benefits_count=Count(
+                    "products",
+                    filter=Q(products__finished=False) | Q(products__finished__isnull=True),
+                    distinct=True,
+                ),
+            )
+            .order_by("enterprise", "username")
+        )
+        serializer = EmployeeEnterpriseListSerializer(
+            enterprises,
+            many=True,
+            context={"request": request},
+        )
+        return Response({"enterprises": serializer.data}, status=status.HTTP_200_OK)
 
 
 class EmployeeCompaniesListView(APIView):
@@ -842,6 +960,8 @@ class EmployeeEnterpriseDetailView(APIView):
                 "niche": niche or None,
                 "phone": enterprise.phone,
                 "address": getattr(profile, "address", None),
+                "latitude": getattr(profile, "latitude", None),
+                "longitude": getattr(profile, "longitude", None),
                 "facebook": getattr(profile, "facebook", None),
                 "instagram": getattr(profile, "instagram", None),
                 "X": getattr(profile, "X", None),

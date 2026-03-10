@@ -196,6 +196,7 @@ class EditUserEmployeesSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     phone = serializers.CharField(source="user.phone", read_only=True)
+
     class Meta:
         model = UserProfile
         fields = [
@@ -208,6 +209,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "niche",
             "phone",
             "address",
+            "latitude",
+            "longitude",
             "facebook",
             "instagram",
             "X",
@@ -229,6 +232,7 @@ class UserEmployeesProfileSerializer(serializers.ModelSerializer):
 class UserEnterpriseProfileSerializer(serializers.ModelSerializer):
     user = UserEmployeesProfileSerializer()
     phone = serializers.CharField(source="user.phone", read_only=True)
+
     class Meta:
         model = UserProfile
         fields = [
@@ -238,6 +242,8 @@ class UserEnterpriseProfileSerializer(serializers.ModelSerializer):
             "niche",
             "phone",
             "address",
+            "latitude",
+            "longitude",
             "facebook",
             "instagram",
             "X",
@@ -250,6 +256,18 @@ class EmployeeEnterpriseListSerializer(serializers.ModelSerializer):
     niche = serializers.CharField(source="userprofile.niche", read_only=True)
     phone = serializers.CharField(read_only=True)
     address = serializers.CharField(source="userprofile.address", read_only=True)
+    latitude = serializers.DecimalField(
+        source="userprofile.latitude",
+        max_digits=9,
+        decimal_places=6,
+        read_only=True,
+    )
+    longitude = serializers.DecimalField(
+        source="userprofile.longitude",
+        max_digits=9,
+        decimal_places=6,
+        read_only=True,
+    )
     facebook = serializers.CharField(source="userprofile.facebook", read_only=True)
     instagram = serializers.CharField(source="userprofile.instagram", read_only=True)
     X = serializers.CharField(source="userprofile.X", read_only=True)
@@ -268,6 +286,8 @@ class EmployeeEnterpriseListSerializer(serializers.ModelSerializer):
             "niche",
             "phone",
             "address",
+            "latitude",
+            "longitude",
             "facebook",
             "instagram",
             "X",

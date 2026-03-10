@@ -35,6 +35,8 @@ const initialProfile = {
   nuip_enterprise: "",
   niche: "",
   address: "",
+  latitude: "",
+  longitude: "",
   description: "",
   facebook: "",
   instagram: "",
@@ -70,6 +72,11 @@ const normalizePhone = (value: string) => {
 };
 const isValidPhone = (value: string) => /^3\d{9}$/.test(value);
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const parseCoordinate = (value: string) => {
+  if (!value.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 const getFriendlyCreateError = (error: any, fallback: string) => {
   const raw = [
     error?.message,
@@ -144,13 +151,21 @@ export default function AdminCreateCompanyPage() {
     const niche = profileForm.niche.trim();
     const description = profileForm.description.trim();
     const address = profileForm.address.trim();
+    const latitude = parseCoordinate(profileForm.latitude);
+    const longitude = parseCoordinate(profileForm.longitude);
     return (
       !!enterpriseDocType &&
       !!enterpriseNuip &&
       isDocumentLengthValid(enterpriseNuip, enterpriseDocType) &&
       !!niche &&
       !!description &&
-      !!address
+      !!address &&
+      latitude !== null &&
+      longitude !== null &&
+      latitude >= -90 &&
+      latitude <= 90 &&
+      longitude >= -180 &&
+      longitude <= 180
     );
   }, [profileForm]);
 
@@ -215,6 +230,8 @@ export default function AdminCreateCompanyPage() {
     const niche = profileForm.niche.trim();
     const description = profileForm.description.trim();
     const address = profileForm.address.trim();
+    const latitude = parseCoordinate(profileForm.latitude);
+    const longitude = parseCoordinate(profileForm.longitude);
 
     if (!enterpriseDocType) {
       toast.error("Selecciona el tipo de documento de la empresa.");
@@ -240,6 +257,14 @@ export default function AdminCreateCompanyPage() {
     }
     if (!address) {
       toast.error("La dirección de la empresa es obligatoria.");
+      return;
+    }
+    if (latitude === null || latitude < -90 || latitude > 90) {
+      toast.error("La latitud es obligatoria y debe estar entre -90 y 90.");
+      return;
+    }
+    if (longitude === null || longitude < -180 || longitude > 180) {
+      toast.error("La longitud es obligatoria y debe estar entre -180 y 180.");
       return;
     }
 
@@ -281,6 +306,8 @@ export default function AdminCreateCompanyPage() {
         formData.append("niche", profileForm.niche.trim());
       if (profileForm.address.trim())
         formData.append("address", profileForm.address.trim());
+      formData.append("latitude", String(latitude));
+      formData.append("longitude", String(longitude));
       if (profileForm.description.trim())
         formData.append("description", profileForm.description.trim());
       if (profileForm.facebook.trim())
@@ -555,6 +582,32 @@ export default function AdminCreateCompanyPage() {
                       setProfileForm((p) => ({ ...p, address: e.target.value }))
                     }
                     placeholder="Calle 123 #45-67"
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="latitude">Latitud *</Label>
+                  <Input
+                    id="latitude"
+                    value={profileForm.latitude}
+                    onChange={(e) =>
+                      setProfileForm((p) => ({ ...p, latitude: e.target.value }))
+                    }
+                    placeholder="4.711000"
+                    inputMode="decimal"
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="longitude">Longitud *</Label>
+                  <Input
+                    id="longitude"
+                    value={profileForm.longitude}
+                    onChange={(e) =>
+                      setProfileForm((p) => ({ ...p, longitude: e.target.value }))
+                    }
+                    placeholder="-74.072100"
+                    inputMode="decimal"
                     required
                   />
                 </div>

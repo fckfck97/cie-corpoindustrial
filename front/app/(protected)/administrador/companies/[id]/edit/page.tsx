@@ -26,6 +26,11 @@ const normalizePhone = (value: string) => {
 };
 const isValidPhone = (value: string) => /^3\d{9}$/.test(value);
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const parseCoordinate = (value: string) => {
+  if (!value.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 const getFriendlyUniqueFieldError = (
   error: any,
   emailWasChanged: boolean,
@@ -103,6 +108,8 @@ type ProfileData = {
   nuip_enterprise?: string;
   niche?: string;
   address?: string;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
   description?: string;
   facebook?: string;
   instagram?: string;
@@ -143,6 +150,8 @@ export default function AdminEditCompanyPage() {
     nuip_enterprise: "",
     niche: "",
     address: "",
+    latitude: "",
+    longitude: "",
     description: "",
     facebook: "",
     instagram: "",
@@ -176,7 +185,21 @@ export default function AdminEditCompanyPage() {
     const niche = profileForm.niche.trim();
     const description = profileForm.description.trim();
     const address = profileForm.address.trim();
-    return !!enterpriseDocType && !!enterpriseNuip && !!niche && !!description && !!address;
+    const latitude = parseCoordinate(profileForm.latitude);
+    const longitude = parseCoordinate(profileForm.longitude);
+    return (
+      !!enterpriseDocType &&
+      !!enterpriseNuip &&
+      !!niche &&
+      !!description &&
+      !!address &&
+      latitude !== null &&
+      longitude !== null &&
+      latitude >= -90 &&
+      latitude <= 90 &&
+      longitude >= -180 &&
+      longitude <= 180
+    );
   }, [profileForm]);
 
   useEffect(() => {
@@ -217,6 +240,8 @@ export default function AdminEditCompanyPage() {
             nuip_enterprise: profileData.nuip_enterprise || "",
             niche: profileData.niche || "",
             address: profileData.address || "",
+            latitude: profileData.latitude?.toString() || "",
+            longitude: profileData.longitude?.toString() || "",
             description: profileData.description || "",
             facebook: profileData.facebook || "",
             instagram: profileData.instagram || "",
@@ -289,6 +314,8 @@ export default function AdminEditCompanyPage() {
     const niche = profileForm.niche.trim();
     const description = profileForm.description.trim();
     const address = profileForm.address.trim();
+    const latitude = parseCoordinate(profileForm.latitude);
+    const longitude = parseCoordinate(profileForm.longitude);
 
     if (!enterpriseDocType) {
       toast.error("Selecciona el tipo de documento de la empresa.");
@@ -308,6 +335,14 @@ export default function AdminEditCompanyPage() {
     }
     if (!address) {
       toast.error("La dirección de la empresa es obligatoria.");
+      return;
+    }
+    if (latitude === null || latitude < -90 || latitude > 90) {
+      toast.error("La latitud es obligatoria y debe estar entre -90 y 90.");
+      return;
+    }
+    if (longitude === null || longitude < -180 || longitude > 180) {
+      toast.error("La longitud es obligatoria y debe estar entre -180 y 180.");
       return;
     }
 
@@ -346,6 +381,8 @@ export default function AdminEditCompanyPage() {
         profilePayload.append("niche", profileForm.niche.trim());
       if (profileForm.address.trim())
         profilePayload.append("address", profileForm.address.trim());
+      profilePayload.append("latitude", String(latitude));
+      profilePayload.append("longitude", String(longitude));
       if (profileForm.description.trim())
         profilePayload.append("description", profileForm.description.trim());
       if (profileForm.facebook.trim())
@@ -584,6 +621,26 @@ export default function AdminEditCompanyPage() {
                       value={profileForm.address}
                       onChange={(e) => setProfileForm((p) => ({ ...p, address: e.target.value }))}
                       placeholder="Calle 123 #45-67"
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Latitud *</Label>
+                    <Input
+                      value={profileForm.latitude}
+                      onChange={(e) => setProfileForm((p) => ({ ...p, latitude: e.target.value }))}
+                      placeholder="4.711000"
+                      inputMode="decimal"
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Longitud *</Label>
+                    <Input
+                      value={profileForm.longitude}
+                      onChange={(e) => setProfileForm((p) => ({ ...p, longitude: e.target.value }))}
+                      placeholder="-74.072100"
+                      inputMode="decimal"
                       required
                     />
                   </div>

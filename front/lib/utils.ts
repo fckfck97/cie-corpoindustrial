@@ -8,9 +8,30 @@ export function cn(...inputs: ClassValue[]) {
 
 export const getImageUrl = (path?: string | null) => {
   if (!path) return undefined;
-  if (path.startsWith('http')) return path;
-  // ensure baseurl doesn't have trailing slash if path has leading slash, or handle it
-  const baseUrl = config.api.baseUrl.replace(/\/$/, '');
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${baseUrl}${cleanPath}`;
+  const rawPath = String(path).trim();
+
+  if (/^https?:\/\//i.test(rawPath)) {
+    try {
+      const parsed = new URL(rawPath);
+      parsed.pathname = parsed.pathname.replace(/\/media\/media\//g, '/media/');
+      return parsed.toString();
+    } catch {
+      return rawPath;
+    }
+  }
+
+  // Build image URLs against API origin and normalize exactly one "/media/" segment.
+  let apiOrigin = config.api.baseUrl.trim().replace(/\/+$/, '');
+  apiOrigin = apiOrigin.replace(/\/api$/i, '').replace(/\/media$/i, '');
+
+  const normalizedPath = rawPath
+    .replace(/^\/+/, '')
+    .replace(/^api\/media\//i, 'media/')
+    .replace(/^media\/media\//i, 'media/');
+
+  const mediaRelativePath = normalizedPath.startsWith('media/')
+    ? normalizedPath.slice('media/'.length)
+    : normalizedPath;
+
+  return `${apiOrigin}/media/${mediaRelativePath}`;
 };

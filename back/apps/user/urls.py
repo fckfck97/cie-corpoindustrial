@@ -13,6 +13,7 @@ from .views import (
     EmployeeEnterpriseDetailView,
     EmployeeDashboardView,
     EmployeeCompaniesListView,
+    AdminEnterpriseMapView,
 )
 from django.urls import path
 urlpatterns = [
@@ -34,5 +35,6 @@ urlpatterns = [
     path('api/billing/my-payments/', EnterpriseOwnPaymentsView.as_view(), name='billing-my-payments'),
     path('api/employee/dashboard/', EmployeeDashboardView.as_view(), name='employee-dashboard'),
     path('api/employee/companies/', EmployeeCompaniesListView.as_view(), name='employee-companies'),
+    path('api/admin/enterprise-map/', AdminEnterpriseMapView.as_view(), name='admin-enterprise-map'),
     path('api/employee/portal/enterprises/<uuid:enterprise_id>/', EmployeeEnterpriseDetailView.as_view(), name='employee-enterprise-detail'),
 ]

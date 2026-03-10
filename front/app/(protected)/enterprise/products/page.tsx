@@ -340,8 +340,6 @@ export default function ProductsPage() {
                     <tr className="text-left">
                       <th className="p-3 font-semibold">Imagen</th>
                       <th className="p-3 font-semibold">Nombre</th>
-                      <th className="p-3 font-semibold">Categoría</th>
-                      <th className="p-3 font-semibold">Subcategoría</th>
                       <th className="p-3 font-semibold">Vistas</th>
                       <th className="p-3 font-semibold">Canjeados</th>
                       <th className="p-3 font-semibold">Fecha</th>
@@ -371,11 +369,7 @@ export default function ProductsPage() {
 
                         <td className="p-3 font-medium">{product.name}</td>
 
-                        <td className="p-3">
-                          <Badge variant="secondary">{product.category || '-'}</Badge>
-                        </td>
 
-                        <td className="p-3 text-muted-foreground">{product.subcategory || '-'}</td>
 
                         <td className="p-3">
                           <Badge variant="outline" className="font-mono">

@@ -16,6 +16,7 @@ import {
   Package,
   Wallet,
   Building2,
+  MapPinned,
   AlertTriangle,
   Lock,
 } from "lucide-react";
@@ -131,6 +132,12 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       visible: isAdmin,
     },
     {
+      label: "Mapa Empresas",
+      href: "/administrador/companies/map",
+      icon: MapPinned,
+      visible: isAdmin,
+    },
+    {
       label: "Canjes Beneficios",
       href: "/administrador/benefits/redemptions",
       icon: Package,
@@ -167,6 +174,15 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       visible: can("view_dashboard"),
     },
   ];
+  const visibleNavItems = navItems.filter((item) => item.visible);
+  const activeHref =
+    visibleNavItems
+      .filter(
+        (item) =>
+          pathname === item.href ||
+          pathname.startsWith(item.href + "/"),
+      )
+      .sort((a, b) => b.href.length - a.href.length)[0]?.href || "";
 
   return (
     <aside
@@ -176,12 +192,9 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       )}
     >
       <nav className="space-y-1 p-3 sm:p-4">
-        {navItems.map((item) => {
-          if (!item.visible) return null;
-
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
-          const isActive =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+          const isActive = item.href === activeHref;
           const disabled = profileBlocked && item.href !== "/profile";
 
           return (

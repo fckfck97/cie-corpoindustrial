@@ -50,6 +50,8 @@ export type EmployeePortalResponse = {
     niche?: string;
     phone?: string;
     address?: string;
+    latitude?: string | number | null;
+    longitude?: string | number | null;
     facebook?: string;
     instagram?: string;
     X?: string;
@@ -66,6 +68,8 @@ export type EmployeePortalResponse = {
     niche?: string;
     phone?: string;
     address?: string;
+    latitude?: string | number | null;
+    longitude?: string | number | null;
     facebook?: string;
     instagram?: string;
     X?: string;
@@ -98,6 +102,8 @@ export type EmployeeCompaniesResponse = {
   niche?: string;
   phone?: string;
   address?: string;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
   facebook?: string;
   instagram?: string;
   X?: string;
@@ -116,6 +122,8 @@ export type EmployeeEnterpriseDetailResponse = {
     niche?: string;
     phone?: string;
     address?: string;
+    latitude?: string | number | null;
+    longitude?: string | number | null;
     facebook?: string;
     instagram?: string;
     X?: string;

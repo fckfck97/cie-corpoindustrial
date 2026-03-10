@@ -7,8 +7,16 @@ import { fetchEmployeeEnterpriseDetail, type EmployeeEnterpriseDetailResponse } 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { getImageUrl } from '@/lib/utils';
 import { getJobPriorityLabel } from '@/lib/model-choice-labels';
+import { ExternalLink, MapPin } from 'lucide-react';
 
 export default function EmployeesCompanyDetailPage() {
   const params = useParams<{ id: string }>();
@@ -17,6 +25,8 @@ export default function EmployeesCompanyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [detail, setDetail] = useState<EmployeeEnterpriseDetailResponse | null>(null);
+  const [openLocationModal, setOpenLocationModal] = useState(false);
+  const [resolvedAddress, setResolvedAddress] = useState('');
 
   useEffect(() => {
     if (!companyId) return;
@@ -34,17 +44,58 @@ export default function EmployeesCompanyDetailPage() {
     };
     load();
   }, [companyId]);
+  const enterprise = detail?.enterprise;
+  const parseCoordinate = (value?: string | number | null) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const latitude = parseCoordinate(enterprise?.latitude);
+  const longitude = parseCoordinate(enterprise?.longitude);
+  const hasCoordinates = latitude !== null && longitude !== null;
+  const displayAddress = enterprise?.address || resolvedAddress || (hasCoordinates ? 'Buscando dirección...' : 'No registrada');
+  const mapUrl = hasCoordinates
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${(longitude - 0.02)}%2C${(latitude - 0.02)}%2C${(longitude + 0.02)}%2C${(latitude + 0.02)}&layer=mapnik&marker=${latitude}%2C${longitude}`
+    : null;
+  const openStreetMapUrl = hasCoordinates
+    ? `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`
+    : '';
 
-  if (loading) return <div className="py-10 text-center text-muted-foreground">Cargando empresa...</div>;
-  if (error) return <div className="py-10 text-center text-red-600">{error}</div>;
-  if (!detail) return <div className="py-10 text-center text-muted-foreground">Empresa no encontrada.</div>;
-
-  const enterprise = detail.enterprise;
   const normalizeLink = (value?: string) => {
     if (!value) return undefined;
     if (value.startsWith('http://') || value.startsWith('https://')) return value;
     return `https://${value}`;
   };
+
+  useEffect(() => {
+    if (!enterprise || enterprise.address || !hasCoordinates) {
+      setResolvedAddress('');
+      return;
+    }
+
+    let cancelled = false;
+    const resolve = async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+        );
+        if (!response.ok) return;
+        const data = await response.json();
+        const label = data?.display_name ? String(data.display_name).trim() : '';
+        if (!cancelled) setResolvedAddress(label);
+      } catch {
+        if (!cancelled) setResolvedAddress('');
+      }
+    };
+    resolve();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enterprise, hasCoordinates, latitude, longitude]);
+
+  if (loading) return <div className="py-10 text-center text-muted-foreground">Cargando empresa...</div>;
+  if (error) return <div className="py-10 text-center text-red-600">{error}</div>;
+  if (!enterprise || !detail) return <div className="py-10 text-center text-muted-foreground">Empresa no encontrada.</div>;
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -65,7 +116,7 @@ export default function EmployeesCompanyDetailPage() {
                     <div className="h-full w-full bg-muted flex items-center justify-center text-xs text-muted-foreground">Sin logo</div>
                     )}
                 </div>
-                <div className="text-center md:text-left md:mb-2">
+                <div className="text-center md:text-left md:mb-2 mt-15">
                     <h1 className="text-3xl font-black tracking-tight">{enterprise.name}</h1>
                     <p className="text-sm text-muted-foreground">{enterprise.niche || 'Empresa'}</p>
                 </div>
@@ -90,7 +141,20 @@ export default function EmployeesCompanyDetailPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     <div className="p-3 rounded-lg bg-background/50 border text-sm">
                         <span className="block font-medium text-foreground">Dirección</span>
-                        <span className="text-muted-foreground">{enterprise.address || 'No registrada'}</span>
+                        <span className="text-muted-foreground">{displayAddress}</span>
+                        <div className="pt-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setOpenLocationModal(true)}
+                            disabled={!hasCoordinates}
+                            className="gap-2"
+                          >
+                            <MapPin className="h-4 w-4" />
+                            Ver ubicación
+                          </Button>
+                        </div>
                     </div>
                     <div className="p-3 rounded-lg bg-background/50 border text-sm">
                          <span className="block font-medium text-foreground">Contacto</span>
@@ -184,6 +248,35 @@ export default function EmployeesCompanyDetailPage() {
             </div>
         </div>
       </div>
+
+      <Dialog open={openLocationModal} onOpenChange={setOpenLocationModal}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Ubicación de {enterprise.name}
+            </DialogTitle>
+            <DialogDescription>{displayAddress}</DialogDescription>
+          </DialogHeader>
+
+          {mapUrl ? (
+            <div className="space-y-3">
+              <div className="overflow-hidden rounded-xl border">
+                <iframe
+                  title={`Ubicación ${enterprise.name}`}
+                  src={mapUrl}
+                  className="h-[420px] w-full"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Esta empresa no tiene coordenadas registradas.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
