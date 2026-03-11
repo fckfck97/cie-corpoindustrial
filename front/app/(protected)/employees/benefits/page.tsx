@@ -4,10 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   fetchEmployeeBenefits,
-  fetchEmployeeBenefitRedemptions,
   type PaginatedResponse,
   type EmployeePortalBenefit,
-  type EmployeeBenefitRedemption,
 } from "@/lib/employee-portal";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +13,7 @@ import { getImageUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Gift } from "lucide-react";
+import { Search, Gift, History } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 type BenefitUnlockStore = {
@@ -55,9 +53,7 @@ export default function EmployeesBenefitsPage() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const [data, setData] = useState<PaginatedResponse<EmployeePortalBenefit> | null>(null);
-  const [redemptions, setRedemptions] = useState<EmployeeBenefitRedemption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingRedemptions, setLoadingRedemptions] = useState(true);
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -108,25 +104,6 @@ export default function EmployeesBenefitsPage() {
     load();
   }, [user, page, search, enterpriseId]);
 
-  useEffect(() => {
-    const isEmployee = user?.backendRole === "employees" || user?.role === "employee";
-    if (!isEmployee) {
-      setLoadingRedemptions(false);
-      return;
-    }
-
-    const loadRedemptions = async () => {
-      setLoadingRedemptions(true);
-      try {
-        const response = await fetchEmployeeBenefitRedemptions();
-        setRedemptions(response || []);
-      } finally {
-        setLoadingRedemptions(false);
-      }
-    };
-    loadRedemptions();
-  }, [user]);
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
@@ -136,16 +113,7 @@ export default function EmployeesBenefitsPage() {
   const pageBenefits = data?.results || [];
   const availableBenefits = pageBenefits.filter((benefit) => !benefit.already_redeemed);
   const redeemedBenefits = pageBenefits.filter((benefit) => !!benefit.already_redeemed);
-  const normalizedSearch = search.trim().toLowerCase();
   const totalBenefits = data?.count ?? 0;
-
-  const deletedRedemptions = redemptions.filter((redemption) => {
-    if (!redemption.product_deleted) return false;
-    if (enterpriseId && redemption.enterprise !== enterpriseId) return false;
-    if (!normalizedSearch) return true;
-    const searchable = `${redemption.product_name || ""} ${redemption.enterprise_name || ""}`.toLowerCase();
-    return searchable.includes(normalizedSearch);
-  });
 
   return (
     <div className="space-y-6 pb-10">
@@ -159,6 +127,12 @@ export default function EmployeesBenefitsPage() {
             {enterpriseId ? "Beneficios de la empresa seleccionada." : "Beneficios y recursos disponibles para ti."}
           </p>
         </div>
+        <Button asChild variant="outline" className="gap-2">
+          <Link href="/employees/benefits/redemptions">
+            <History className="h-4 w-4" />
+            Ver productos canjeados
+          </Link>
+        </Button>
       </div>
 
       <Card>
@@ -312,44 +286,7 @@ export default function EmployeesBenefitsPage() {
             </section>
           )}
 
-          <section className="space-y-4">
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight">Historial de canjes</h2>
-              <p className="text-sm text-muted-foreground">
-                Registro protegido de beneficios ya canjeados, aunque la empresa elimine el producto.
-              </p>
-            </div>
-            {loadingRedemptions ? (
-              <div className="text-sm text-muted-foreground">Cargando historial...</div>
-            ) : deletedRedemptions.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                No hay canjes históricos de beneficios eliminados.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {deletedRedemptions.map((redemption) => (
-                  <div key={redemption.id} className="rounded-xl border bg-card p-4 shadow-sm">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="line-clamp-1 font-semibold">
-                        {redemption.product_name || "Beneficio eliminado"}
-                      </h3>
-                      <Badge variant="outline" className="border-amber-500/40 text-amber-700">
-                        Eliminado
-                      </Badge>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {redemption.enterprise_name || "Empresa"}
-                    </p>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Canjeado el {new Date(redemption.redeemed_at).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {(!data?.results || data.results.length === 0) && deletedRedemptions.length === 0 && (
+          {(!data?.results || data.results.length === 0) && (
              <div className="text-center py-20">
                <p className="text-muted-foreground">No se encontraron productos.</p>
              </div>

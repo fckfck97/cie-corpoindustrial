@@ -205,7 +205,7 @@ class UserView(APIView):
             elif request.user.role == 'Admin':
                 employees = (
                     UserAccount.objects
-                    .filter(role='enterprise')
+                    .filter(role='enterprise', is_active=True)
                     .annotate(benefits_count=Count("products", distinct=True))
                     .order_by('-date_joined')
                 )
@@ -1674,11 +1674,14 @@ class OTPLoginVerifyWebView(APIView):
         identifier = serializer.validated_data["identifier"]
         otp_code = serializer.validated_data["otp"]
 
-        user = User.objects.filter(email__iexact=normalize_email(identifier)).first()
+        user = User.objects.filter(
+            email__iexact=normalize_email(identifier),
+            is_active=True,
+        ).first()
         if not user:
             return Response(
-                {"detail": "Usuario no encontrado."},
-                status=status.HTTP_404_NOT_FOUND,
+                {"detail": "Usuario inactivo o no encontrado."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         valid_employee_context, employee_context_error = employee_login_context_valid(user)

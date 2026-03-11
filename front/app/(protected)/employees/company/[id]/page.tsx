@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { getImageUrl } from '@/lib/utils';
 import { getJobPriorityLabel } from '@/lib/model-choice-labels';
-import { ExternalLink, MapPin } from 'lucide-react';
+import { ExternalLink, Facebook, Instagram, Mail, MapPin, Twitter } from 'lucide-react';
 
 export default function EmployeesCompanyDetailPage() {
   const params = useParams<{ id: string }>();
@@ -27,6 +27,9 @@ export default function EmployeesCompanyDetailPage() {
   const [detail, setDetail] = useState<EmployeeEnterpriseDetailResponse | null>(null);
   const [openLocationModal, setOpenLocationModal] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState('');
+  const [jobsPage, setJobsPage] = useState(1);
+  const [benefitsPage, setBenefitsPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   useEffect(() => {
     if (!companyId) return;
@@ -44,8 +47,15 @@ export default function EmployeesCompanyDetailPage() {
     };
     load();
   }, [companyId]);
+
+  useEffect(() => {
+    setJobsPage(1);
+    setBenefitsPage(1);
+  }, [detail?.enterprise?.id]);
   const enterprise = detail?.enterprise;
   const parseCoordinate = (value?: string | number | null) => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'string' && value.trim() === '') return null;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
   };
@@ -97,6 +107,16 @@ export default function EmployeesCompanyDetailPage() {
   if (error) return <div className="py-10 text-center text-red-600">{error}</div>;
   if (!enterprise || !detail) return <div className="py-10 text-center text-muted-foreground">Empresa no encontrada.</div>;
 
+  const jobsTotalPages = Math.max(1, Math.ceil(detail.jobs.length / PAGE_SIZE));
+  const safeJobsPage = Math.min(jobsPage, jobsTotalPages);
+  const jobsStart = (safeJobsPage - 1) * PAGE_SIZE;
+  const paginatedJobs = detail.jobs.slice(jobsStart, jobsStart + PAGE_SIZE);
+
+  const benefitsTotalPages = Math.max(1, Math.ceil(detail.benefits.length / PAGE_SIZE));
+  const safeBenefitsPage = Math.min(benefitsPage, benefitsTotalPages);
+  const benefitsStart = (safeBenefitsPage - 1) * PAGE_SIZE;
+  const paginatedBenefits = detail.benefits.slice(benefitsStart, benefitsStart + PAGE_SIZE);
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Hero Banner */}
@@ -116,7 +136,7 @@ export default function EmployeesCompanyDetailPage() {
                     <div className="h-full w-full bg-muted flex items-center justify-center text-xs text-muted-foreground">Sin logo</div>
                     )}
                 </div>
-                <div className="text-center md:text-left md:mb-2 mt-15">
+                <div className="text-center md:text-left md:mb-2 md:mt-15">
                     <h1 className="text-3xl font-black tracking-tight">{enterprise.name}</h1>
                     <p className="text-sm text-muted-foreground">{enterprise.niche || 'Empresa'}</p>
                 </div>
@@ -130,36 +150,102 @@ export default function EmployeesCompanyDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Info */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="space-y-6">
              <div className="rounded-xl border bg-card/50 p-6 backdrop-blur-sm shadow-sm space-y-4">
                 <h2 className="text-lg font-semibold tracking-tight">Acerca de {enterprise.name}</h2>
                 <div className="prose prose-sm max-w-none text-muted-foreground">
                     <p>{enterprise.description || 'Sin descripción disponible.'}</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                    <div className="p-3 rounded-lg bg-background/50 border text-sm">
-                        <span className="block font-medium text-foreground">Dirección</span>
-                        <span className="text-muted-foreground">{displayAddress}</span>
-                        <div className="pt-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setOpenLocationModal(true)}
-                            disabled={!hasCoordinates}
-                            className="gap-2"
-                          >
-                            <MapPin className="h-4 w-4" />
-                            Ver ubicación
-                          </Button>
+                <div className="pt-2">
+                  <div className="rounded-xl border bg-background/70 p-4 text-sm shadow-sm">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-2">
+                          <div className="rounded-full bg-sky-100 p-1.5">
+                            <Mail className="h-4 w-4 text-sky-700" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">Contacto</p>
+                            <p className="text-muted-foreground break-all">{enterprise.email || 'No registrado'}</p>
+                          </div>
                         </div>
+                        <div className="flex items-start gap-2">
+                          <div className="rounded-full bg-emerald-100 p-1.5">
+                            <MapPin className="h-4 w-4 text-emerald-700" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">Dirección</p>
+                            <p className="text-muted-foreground leading-relaxed">{displayAddress}</p>
+                          </div>
+                        </div>
+                      </div>
+                      {hasCoordinates ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setOpenLocationModal(true)}
+                          className="gap-2 self-start"
+                        >
+                          <MapPin className="h-4 w-4" />
+                          Ver ubicación
+                        </Button>
+                      ) : null}
                     </div>
-                    <div className="p-3 rounded-lg bg-background/50 border text-sm">
-                         <span className="block font-medium text-foreground">Contacto</span>
-                        <span className="text-muted-foreground">{enterprise.email || '-'}</span>
-                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-1 space-y-2">
+                  <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Redes Sociales</h3>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {enterprise.facebook && (
+                      <a
+                        href={normalizeLink(enterprise.facebook)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50/60 p-3 transition-all hover:shadow-sm hover:border-blue-200 text-sm"
+                      >
+                        <span className="flex items-center gap-2 font-medium">
+                          <Facebook className="h-4 w-4 text-blue-600" />
+                          Facebook
+                        </span>
+                        <span className="text-blue-600 group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+                      </a>
+                    )}
+                    {enterprise.instagram && (
+                      <a
+                        href={normalizeLink(enterprise.instagram)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group flex items-center justify-between rounded-lg border border-pink-100 bg-pink-50/60 p-3 transition-all hover:shadow-sm hover:border-pink-200 text-sm"
+                      >
+                        <span className="flex items-center gap-2 font-medium">
+                          <Instagram className="h-4 w-4 text-pink-600" />
+                          Instagram
+                        </span>
+                        <span className="text-pink-600 group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+                      </a>
+                    )}
+                    {enterprise.X && (
+                      <a
+                        href={normalizeLink(enterprise.X)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 transition-all hover:shadow-sm hover:border-neutral-300 text-sm"
+                      >
+                        <span className="flex items-center gap-2 font-medium">
+                          <Twitter className="h-4 w-4 text-neutral-700" />
+                          X (Twitter)
+                        </span>
+                        <span className="text-neutral-700 group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+                      </a>
+                    )}
+                  </div>
+                  {!enterprise.facebook && !enterprise.instagram && !enterprise.X && (
+                    <p className="text-sm text-muted-foreground rounded-lg border border-dashed p-3">
+                      Sin redes conectadas.
+                    </p>
+                  )}
                 </div>
              </div>
 
@@ -170,83 +256,116 @@ export default function EmployeesCompanyDetailPage() {
                     <Badge variant="secondary">{detail.jobs.length}</Badge>
                 </div>
                 {detail.jobs.length > 0 ? (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                         {detail.jobs.slice(0, 10).map((job) => (
+                    <>
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                         {paginatedJobs.map((job) => (
                             <Link key={job.id} href={`/employees/jobs/${job.id}`} className="group block">
-                                <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20">
+                                <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 aspect-square flex flex-col">
                                     <div className="flex items-start justify-between gap-2 mb-3">
                                         <div className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">{job.title}</div>
                                         <Badge variant="outline" className="text-[10px] h-5">{getJobPriorityLabel(job.priority)}</Badge>
                                     </div>
-                                    <div className="h-32 w-full rounded-lg bg-muted overflow-hidden mb-3">
+                                    <div className="w-full rounded-lg bg-muted overflow-hidden mb-3 aspect-square">
                                         {getImageUrl(job.image) && (
                                             <img src={getImageUrl(job.image)} alt="" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                         )}
                                     </div>
-                                    <Button size="sm" variant="secondary" className="w-full">Ver detalle</Button>
+                                    <Button size="sm" variant="secondary" className="w-full mt-auto">Ver detalle</Button>
                                 </div>
                             </Link>
                         ))}
                     </div>
+                    {detail.jobs.length > PAGE_SIZE ? (
+                      <div className="mt-4 flex items-center justify-between rounded-lg border bg-card/50 px-3 py-2">
+                        <p className="text-xs text-muted-foreground">
+                          Página {safeJobsPage} de {jobsTotalPages}
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setJobsPage((prev) => Math.max(1, prev - 1))}
+                            disabled={safeJobsPage <= 1}
+                          >
+                            Anterior
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setJobsPage((prev) => Math.min(jobsTotalPages, prev + 1))}
+                            disabled={safeJobsPage >= jobsTotalPages}
+                          >
+                            Siguiente
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                    </>
                 ) : (
                     <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
                         No hay vacantes activas por el momento.
                     </div>
                 )}
              </div>
-        </div>
 
-        {/* Sidebar Info */}
-        <div className="space-y-6">
-            <div className="rounded-xl border bg-card/50 p-5 backdrop-blur-sm shadow-sm space-y-4">
-                 <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Redes Sociales</h3>
-                 <div className="space-y-2">
-                    {enterprise.facebook && (
-                        <a href={normalizeLink(enterprise.facebook)} target="_blank" rel="noreferrer" className="flex items-center justify-between p-2 rounded-md hover:bg-muted transition-colors text-sm">
-                            <span>Facebook</span>
-                            <span className="text-primary">Ver perfil &rarr;</span>
-                        </a>
-                    )}
-                    {enterprise.instagram && (
-                        <a href={normalizeLink(enterprise.instagram)} target="_blank" rel="noreferrer" className="flex items-center justify-between p-2 rounded-md hover:bg-muted transition-colors text-sm">
-                            <span>Instagram</span>
-                            <span className="text-primary">Ver perfil &rarr;</span>
-                        </a>
-                    )}
-                    {enterprise.X && (
-                        <a href={normalizeLink(enterprise.X)} target="_blank" rel="noreferrer" className="flex items-center justify-between p-2 rounded-md hover:bg-muted transition-colors text-sm">
-                            <span>X (Twitter)</span>
-                            <span className="text-primary">Ver perfil &rarr;</span>
-                        </a>
-                    )}
-                    {!enterprise.facebook && !enterprise.instagram && !enterprise.X && (
-                        <p className="text-sm text-muted-foreground p-2">Sin redes conectadas.</p>
-                    )}
-                 </div>
-            </div>
-
-            <div className="rounded-xl border bg-card/50 p-5 backdrop-blur-sm shadow-sm">
-                 <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">Beneficios Activos</h3>
-                 <div className="space-y-3">
-                    {detail.benefits.slice(0, 5).map((benefit) => (
-                         <Link key={benefit.id} href={`/employees/benefits/${benefit.id}`} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors group">
-                             <div className="h-10 w-10 rounded-md bg-muted overflow-hidden shrink-0 border">
-                                {getImageUrl(benefit.image) && (
-                                    <img src={getImageUrl(benefit.image)} alt="" className="h-full w-full object-cover" />
-                                )}
-                             </div>
-                             <div className="overflow-hidden">
-                                 <div className="text-sm font-medium truncate group-hover:text-primary">{benefit.name}</div>
-                                 <div className="text-xs text-muted-foreground">{benefit.category}</div>
-                             </div>
-                         </Link>
-                    ))}
-                    {detail.benefits.length === 0 && (
-                        <p className="text-sm text-muted-foreground">Esta empresa no tiene beneficios listados.</p>
-                    )}
-                 </div>
-            </div>
-        </div>
+             {/* Benefits Grid */}
+             <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">Beneficios activos</h3>
+                    <Badge variant="secondary">{detail.benefits.length}</Badge>
+                </div>
+                {detail.benefits.length > 0 ? (
+                    <>
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                         {paginatedBenefits.map((benefit) => (
+                            <Link key={benefit.id} href={`/employees/benefits/${benefit.id}`} className="group block">
+                                <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 aspect-square flex flex-col">
+                                    <div className="flex items-start justify-between gap-2 mb-3">
+                                        <div className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">{benefit.name}</div>
+                                        <Badge variant="outline" className="text-[10px] h-5">{benefit.category || 'Beneficio'}</Badge>
+                                    </div>
+                                    <div className="w-full rounded-lg bg-muted overflow-hidden mb-3 aspect-square">
+                                        {getImageUrl(benefit.image) && (
+                                            <img src={getImageUrl(benefit.image)} alt="" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                        )}
+                                    </div>
+                                    <Button size="sm" variant="secondary" className="w-full mt-auto">Ver detalle</Button>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                    {detail.benefits.length > PAGE_SIZE ? (
+                      <div className="mt-4 flex items-center justify-between rounded-lg border bg-card/50 px-3 py-2">
+                        <p className="text-xs text-muted-foreground">
+                          Página {safeBenefitsPage} de {benefitsTotalPages}
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setBenefitsPage((prev) => Math.max(1, prev - 1))}
+                            disabled={safeBenefitsPage <= 1}
+                          >
+                            Anterior
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setBenefitsPage((prev) => Math.min(benefitsTotalPages, prev + 1))}
+                            disabled={safeBenefitsPage >= benefitsTotalPages}
+                          >
+                            Siguiente
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                    </>
+                ) : (
+                    <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
+                        Esta empresa no tiene beneficios activos por el momento.
+                    </div>
+                )}
+             </div>
       </div>
 
       <Dialog open={openLocationModal} onOpenChange={setOpenLocationModal}>
@@ -269,6 +388,12 @@ export default function EmployeesCompanyDetailPage() {
                   loading="lazy"
                 />
               </div>
+              <Button asChild variant="outline" className="gap-2">
+                <a href={openStreetMapUrl} target="_blank" rel="noreferrer">
+                  Abrir en OpenStreetMap
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </Button>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
