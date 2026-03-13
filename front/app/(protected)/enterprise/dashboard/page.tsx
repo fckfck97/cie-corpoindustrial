@@ -142,7 +142,7 @@ export default function EnterpriseDashboardPage() {
         iconClass: 'bg-blue-100 text-blue-600',
       },
       {
-        title: 'Vacantes publicadas',
+        title: 'Ofertas publicadas',
         value: String(jobsCount),
         href: '/enterprise/jobs',
         icon: Briefcase,
@@ -150,7 +150,7 @@ export default function EnterpriseDashboardPage() {
         iconClass: 'bg-violet-100 text-violet-600',
       },
       {
-        title: 'Beneficios activos',
+        title: 'Portafolio de Beneficios activo',
         value: String(productsCount),
         href: '/enterprise/products',
         icon: Gift,
@@ -214,7 +214,7 @@ export default function EnterpriseDashboardPage() {
           Hola, {user?.enterprise || user?.name || 'Empresa'}
         </h1>
         <p className="text-lg text-muted-foreground">
-          Resumen de tu operación: equipo, vacantes, beneficios y estado de pagos.
+          Resumen de tu operación: equipo, Bolsa de Empleo, Portafolio de Beneficios y estado de pagos.
         </p>
       </div>
 
@@ -266,10 +266,10 @@ export default function EnterpriseDashboardPage() {
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">Vacantes recientes</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Bolsa de Empleo reciente</h2>
           <Button asChild variant="ghost" className="gap-2">
             <Link href="/enterprise/jobs">
-              Ir a empleos
+              Ir a Bolsa de Empleo
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
@@ -293,7 +293,7 @@ export default function EnterpriseDashboardPage() {
           ))}
           {recentJobs.length === 0 && (
             <div className="col-span-full rounded-xl border border-dashed py-10 text-center text-muted-foreground">
-              No tienes vacantes registradas.
+              No tienes ofertas registradas.
             </div>
           )}
         </div>
@@ -301,10 +301,10 @@ export default function EnterpriseDashboardPage() {
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">Beneficios recientes</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Portafolio de Beneficios reciente</h2>
           <Button asChild variant="ghost" className="gap-2">
             <Link href="/enterprise/products">
-              Ir a beneficios
+              Ir a Portafolio de Beneficios
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
@@ -337,7 +337,7 @@ export default function EnterpriseDashboardPage() {
           ))}
           {recentBenefits.length === 0 && (
             <div className="col-span-full rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-              No tienes beneficios creados.
+              No tienes beneficios en el portafolio.
             </div>
           )}
         </div>

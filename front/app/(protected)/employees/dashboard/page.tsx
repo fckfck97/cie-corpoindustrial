@@ -101,7 +101,7 @@ export default function EmployeesDashboardPage() {
           <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-l-4 border-l-green-500">
              <CardContent className="p-6 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Vacantes Activas</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Bolsa de Empleo activa</p>
                 <h3 className="text-3xl font-bold">{data?.meta.total_jobs || 0}</h3>
               </div>
               <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
@@ -115,7 +115,7 @@ export default function EmployeesDashboardPage() {
           <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-l-4 border-l-orange-500">
             <CardContent className="p-6 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Beneficios</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Portafolio de Beneficios</p>
                 <h3 className="text-3xl font-bold">{data?.meta.total_benefits || 0}</h3>
               </div>
               <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
@@ -128,7 +128,7 @@ export default function EmployeesDashboardPage() {
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight">Empleos Recientes</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Bolsa de Empleo reciente</h2>
             <Button asChild variant="ghost" className="gap-2">
                 <Link href="/employees/jobs">Ver todos <ArrowRight className="h-4 w-4" /></Link>
             </Button>
@@ -179,7 +179,7 @@ export default function EmployeesDashboardPage() {
             ))}
              {(!data?.jobs || data.jobs.length === 0) && (
                 <div className="col-span-full py-12 text-center text-muted-foreground border border-dashed rounded-xl">
-                    No hay empleos recientes.
+                    No hay ofertas recientes.
                 </div>
             )}
         </div>
@@ -187,7 +187,7 @@ export default function EmployeesDashboardPage() {
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight">Nuevos Beneficios</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Portafolio de Beneficios reciente</h2>
             <Button asChild variant="ghost" className="gap-2">
                 <Link href="/employees/benefits">Ver todos <ArrowRight className="h-4 w-4" /></Link>
             </Button>
@@ -223,7 +223,7 @@ export default function EmployeesDashboardPage() {
             ))}
              {(!data?.benefits || data.benefits.length === 0) && (
                 <div className="col-span-full py-12 text-center text-muted-foreground border border-dashed rounded-xl">
-                    No hay beneficios recientes.
+                    No hay beneficios recientes en el portafolio.
                 </div>
             )}
         </div>

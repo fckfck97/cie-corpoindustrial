@@ -123,7 +123,7 @@ export default function PaymentsPage() {
           <div>
             <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
               <CreditCard className="h-8 w-8 text-primary" />
-              Pagos Mensuales
+              Pagos
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">Consulta pagos al día y pendientes. El administrador registra los soportes.</p>
           </div>

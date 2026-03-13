@@ -14,6 +14,7 @@ import {
   UserCircle,
   Briefcase,
   Package,
+  Ticket,
   Wallet,
   Building2,
   MapPinned,
@@ -84,15 +85,21 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       visible: can("manage_employees"),
     },
     {
-      label: "Empleos",
+      label: "Bolsa de Empleo",
       href: "/enterprise/jobs",
       icon: Briefcase,
       visible: isEnterprise,
     },
     {
-      label: "Beneficios",
+      label: "Portafolio de Beneficios",
       href: "/enterprise/products",
       icon: Package,
+      visible: isEnterprise,
+    },
+    {
+      label: "Canjes",
+      href: "/enterprise/benefits/redemptions",
+      icon: Ticket,
       visible: isEnterprise,
     },
     {
@@ -102,13 +109,13 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       visible: isAdmin,
     },
     {
-      label: "Empleos",
+      label: "Bolsa de Empleo",
       href: "/employees/jobs",
       icon: Briefcase,
       visible: isEmployee,
     },
     {
-      label: "Beneficios",
+      label: "Portafolio de Beneficios",
       href: "/employees/benefits",
       icon: Package,
       visible: isEmployee,
@@ -120,10 +127,10 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       visible: isEmployee,
     },
     {
-      label: "Pagos",
-      href: "/enterprise/payments",
-      icon: Wallet,
-      visible: isEnterprise,
+      label: "Mapa de Empresas",
+      href: "/employees/company/map",
+      icon: MapPinned,
+      visible: isEmployee,
     },
     {
       label: "Pagos Empresas",
@@ -162,9 +169,15 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       visible: isEnterprise,
     },
     {
-      label: "Oportunidad Licitaciones",
+      label: "Radar de proyectos licitaciones",
       href: "/enterprise/licitations",
       icon: Briefcase,
+      visible: isEnterprise,
+    },
+    {
+      label: "Mapa de Empresas",
+      href: "/enterprise/companies/map",
+      icon: MapPinned,
       visible: isEnterprise,
     },
     {
@@ -172,6 +185,12 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       href: "/profile",
       icon: UserCircle,
       visible: can("view_dashboard"),
+    },
+    {
+      label: "Pagos",
+      href: "/enterprise/payments",
+      icon: Wallet,
+      visible: isEnterprise,
     },
   ];
   const visibleNavItems = navItems.filter((item) => item.visible);

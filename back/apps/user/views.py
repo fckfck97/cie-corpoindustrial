@@ -729,19 +729,38 @@ class EmployeeDashboardView(APIView):
         return Response(payload, status=status.HTTP_200_OK)
 
 
-class AdminEnterpriseMapView(APIView):
+class EnterpriseMapView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        if request.user.role != "Admin":
+        role = request.user.role
+        if role not in ["enterprise", "employees", "Admin"]:
             return Response(
-                {"detail": "Solo admin."},
+                {"detail": "No autorizado."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        if role == "employees":
+            base_enterprises = (
+                UserAccount.objects.filter(role="enterprise", is_active=True, verified=True)
+                .select_related("userprofile")
+                .order_by("enterprise", "username")
+            )
+            visible_enterprise_ids = [
+                enterprise.id
+                for enterprise in base_enterprises
+                if _enterprise_is_visible_to_employees(enterprise)
+            ]
+            enterprises = UserAccount.objects.filter(id__in=visible_enterprise_ids)
+        else:
+            enterprises = UserAccount.objects.filter(
+                role="enterprise",
+                is_active=True,
+                verified=True,
+            )
+
         enterprises = (
-            UserAccount.objects.filter(role="enterprise", is_active=True)
-            .select_related("userprofile")
+            enterprises.select_related("userprofile")
             .annotate(
                 jobs_count=Count("job_board", filter=Q(job_board__status="published"), distinct=True),
                 benefits_count=Count(

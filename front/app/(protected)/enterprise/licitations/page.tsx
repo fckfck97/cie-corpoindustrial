@@ -93,9 +93,9 @@ export default function EnterpriseLicitationsPage() {
         <div>
           <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
             <Briefcase className="h-8 w-8 text-primary" />
-            Oportunidad Licitaciones
+            Radar de proyectos licitaciones
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Explora licitaciones y postúlate.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Explora proyectos y licitaciones, y postúlate.</p>
         </div>
 
         <div className="flex gap-2 bg-card p-2 rounded-lg border shadow-sm items-center max-w-md">

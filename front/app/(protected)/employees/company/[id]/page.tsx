@@ -252,7 +252,7 @@ export default function EmployeesCompanyDetailPage() {
              {/* Jobs Grid */}
              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-lg">Vacantes disponibles</h3>
+                    <h3 className="font-semibold text-lg">Bolsa de Empleo disponible</h3>
                     <Badge variant="secondary">{detail.jobs.length}</Badge>
                 </div>
                 {detail.jobs.length > 0 ? (
@@ -311,7 +311,7 @@ export default function EmployeesCompanyDetailPage() {
              {/* Benefits Grid */}
              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-lg">Beneficios activos</h3>
+                    <h3 className="font-semibold text-lg">Portafolio de Beneficios activo</h3>
                     <Badge variant="secondary">{detail.benefits.length}</Badge>
                 </div>
                 {detail.benefits.length > 0 ? (
@@ -388,12 +388,6 @@ export default function EmployeesCompanyDetailPage() {
                   loading="lazy"
                 />
               </div>
-              <Button asChild variant="outline" className="gap-2">
-                <a href={openStreetMapUrl} target="_blank" rel="noreferrer">
-                  Abrir en OpenStreetMap
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              </Button>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

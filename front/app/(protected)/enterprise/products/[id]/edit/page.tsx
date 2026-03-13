@@ -152,7 +152,7 @@ export default function EditProductPage() {
           </Button>
 
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">Editar Producto</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Editar beneficio del Portafolio</h1>
             <p className="text-sm text-muted-foreground">Actualiza la información del beneficio.</p>
           </div>
         </div>

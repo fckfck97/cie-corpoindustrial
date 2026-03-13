@@ -110,7 +110,7 @@ export default function CreateJobPage() {
           </Button>
 
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">Crear Nuevo Empleo</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Crear oferta en Bolsa de Empleo</h1>
             <p className="text-sm text-muted-foreground">Completa la información para publicar una vacante.</p>
           </div>
         </div>

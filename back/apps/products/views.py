@@ -38,6 +38,7 @@ class ProductView(APIView):
         user = request.user
         user_role = getattr(user, "role", None)
         enterprise_id = request.query_params.get('enterprise_id', None)
+        search = (request.query_params.get("search") or "").strip()
         today = timezone.localdate()
         if 'pk' in kwargs:
             base_qs = Product.objects.filter(pk=kwargs['pk']).annotate(
@@ -91,6 +92,17 @@ class ProductView(APIView):
                 )
             else:
                 return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+            if search:
+                products = products.filter(
+                    Q(name__icontains=search)
+                    | Q(description__icontains=search)
+                    | Q(category__icontains=search)
+                    | Q(subcategory__icontains=search)
+                    | Q(extracategory__icontains=search)
+                    | Q(user__enterprise__icontains=search)
+                    | Q(user__username__icontains=search)
+                )
 
             products = products.filter(Q(finished=False) | Q(finished__isnull=True)).order_by('-created')
             serializer = self.serializer_class(products, many=True, context={'request': request})
@@ -299,6 +311,9 @@ class EnterpriseBenefitRedemptionsReportView(APIView):
         if request.user.role != "enterprise":
             return Response({"error": "Solo empresas."}, status=status.HTTP_403_FORBIDDEN)
 
+        month = request.query_params.get("month", "").strip()  # formato: YYYY-MM
+        search = request.query_params.get("search", "").strip()
+
         products = Product.objects.filter(user=request.user).annotate(
             redemptions_count=Count("redemptions", distinct=True),
         ).order_by("-created")
@@ -307,14 +322,59 @@ class EnterpriseBenefitRedemptionsReportView(APIView):
         redemptions = ProductRedemption.objects.filter(
             enterprise=request.user,
         ).select_related("product", "employee", "enterprise")
+
+        if month:
+            try:
+                year, month_num = month.split("-")
+                redemptions = redemptions.filter(
+                    redeemed_date__year=int(year),
+                    redeemed_date__month=int(month_num),
+                )
+            except (ValueError, AttributeError):
+                pass
+
+        if search:
+            redemptions = redemptions.filter(
+                Q(product_name_snapshot__icontains=search)
+                | Q(product__name__icontains=search)
+                | Q(employee__first_name__icontains=search)
+                | Q(employee__last_name__icontains=search)
+                | Q(employee__email__icontains=search)
+                | Q(enterprise__enterprise__icontains=search)
+                | Q(enterprise__username__icontains=search)
+                | Q(enterprise_name_snapshot__icontains=search)
+            )
+
+        redemptions = redemptions.order_by("-redeemed_at")
         redemptions_serializer = ProductRedemptionSerializer(redemptions, many=True, context={"request": request})
+
+        by_enterprise = (
+            redemptions.values(
+                "enterprise",
+                "enterprise__enterprise",
+                "enterprise__username",
+            )
+            .annotate(total=Count("id"))
+            .order_by("-total")
+        )
+
+        enterprises = [
+            {
+                "enterprise": str(request.user.id),
+                "enterprise__enterprise": request.user.enterprise,
+                "enterprise__username": request.user.username,
+            }
+        ]
 
         return Response(
             {
                 "products": product_serializer.data,
                 "redemptions": redemptions_serializer.data,
+                "by_enterprise": list(by_enterprise),
+                "enterprises": enterprises,
                 "meta": {
                     "total_redemptions": redemptions.count(),
+                    "filtered": bool(month or search),
                 },
             },
             status=status.HTTP_200_OK,

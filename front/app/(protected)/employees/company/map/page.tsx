@@ -1,9 +1,10 @@
 'use client';
+
 import { EnterpriseMapExplorer } from '@/components/EnterpriseMapExplorer';
 
-export default function AdminCompaniesMapPage() {
+export default function EmployeesCompaniesMapPage() {
   return (
-  <EnterpriseMapExplorer />
+    <EnterpriseMapExplorer />
   );
 }
 

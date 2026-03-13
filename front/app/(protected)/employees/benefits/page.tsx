@@ -121,10 +121,10 @@ export default function EmployeesBenefitsPage() {
         <div>
           <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
             <Gift className="h-8 w-8 text-primary" />
-            Beneficios
+            Portafolio de Beneficios
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {enterpriseId ? "Beneficios de la empresa seleccionada." : "Beneficios y recursos disponibles para ti."}
+            {enterpriseId ? "Portafolio de la empresa seleccionada." : "Portafolio de beneficios y recursos disponibles para ti."}
           </p>
         </div>
         <Button asChild variant="outline" className="gap-2">
@@ -148,7 +148,7 @@ export default function EmployeesBenefitsPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Buscar beneficio..."
+                placeholder="Buscar en el portafolio..."
                 className="pl-9 bg-background"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
@@ -161,7 +161,7 @@ export default function EmployeesBenefitsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Listado de beneficios</CardTitle>
+          <CardTitle>Listado del Portafolio de Beneficios</CardTitle>
           <CardDescription>{loading ? "Cargando..." : `Total: ${totalBenefits}`}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

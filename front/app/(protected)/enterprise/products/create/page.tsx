@@ -96,7 +96,7 @@ export default function CreateProductPage() {
           </Button>
 
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">Crear Producto</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Crear beneficio del Portafolio</h1>
             <p className="text-sm text-muted-foreground">Registra un nuevo producto para tu empresa.</p>
           </div>
         </div>

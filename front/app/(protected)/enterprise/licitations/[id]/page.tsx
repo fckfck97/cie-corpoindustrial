@@ -178,7 +178,7 @@ export default function EnterpriseLicitationDetailsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Oportunidad de Licitación</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Radar de proyectos licitaciones</h1>
             <p className="text-sm text-muted-foreground">Revisa los detalles y postúlate</p>
           </div>
         </div>

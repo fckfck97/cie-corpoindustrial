@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { getImageUrl } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Building2 } from 'lucide-react';
+import { Search, Building2, MapPinned } from 'lucide-react';
 
 export default function EmployeesCompanyPage() {
   const [portal, setPortal] = useState<PaginatedResponse<EmployeeCompaniesResponse> | null>(null);
@@ -46,6 +46,12 @@ export default function EmployeesCompanyPage() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">Explora el directorio de empresas aliadas.</p>
         </div>
+        <Button asChild variant="outline" className="gap-2">
+          <Link href="/employees/company/map">
+            <MapPinned className="h-4 w-4" />
+            Ver mapa de empresas
+          </Link>
+        </Button>
       </div>
 
       <Card>

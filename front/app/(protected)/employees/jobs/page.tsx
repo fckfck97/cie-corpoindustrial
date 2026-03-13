@@ -62,7 +62,7 @@ export default function EmployeesJobsPage() {
         <div>
           <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
             <Briefcase className="h-8 w-8 text-primary" />
-            Vacantes
+            Bolsa de Empleo
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Encuentra nuevas oportunidades laborales.
@@ -86,7 +86,7 @@ export default function EmployeesJobsPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Buscar vacante..."
+                placeholder="Buscar oferta..."
                 className="pl-9 bg-background"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
@@ -99,7 +99,7 @@ export default function EmployeesJobsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Listado de vacantes</CardTitle>
+          <CardTitle>Listado de ofertas</CardTitle>
           <CardDescription>{loading ? "Cargando..." : `Total: ${totalJobs}`}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -186,7 +186,7 @@ export default function EmployeesJobsPage() {
           {(!data?.results || data.results.length === 0) && (
             <div className="text-center py-20">
               <p className="text-muted-foreground">
-                No se encontraron vacantes disponibles.
+                No se encontraron ofertas disponibles.
               </p>
             </div>
           )}

@@ -207,13 +207,13 @@ export default function JobsPage() {
           <div>
             <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
               <Briefcase className="h-8 w-8 text-primary" />
-              Mis Empleos
+              Bolsa de Empleo
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">Administra tus ofertas de trabajo publicadas</p>
           </div>
           <Button className="gap-2" onClick={() => router.push('/enterprise/jobs/create')}>
             <Plus className="h-4 w-4" />
-            Crear Empleo
+            Crear Oferta
           </Button>
         </div>
 
@@ -301,10 +301,10 @@ export default function JobsPage() {
           </CardContent>
         </Card>
 
-        {/* Lista de Empleos */}
+        {/* Lista de ofertas */}
         <Card>
           <CardHeader>
-            <CardTitle>Listado de Empleos</CardTitle>
+            <CardTitle>Listado de ofertas</CardTitle>
             <CardDescription>
               {loading ? 'Cargando...' : `Total: ${totalJobs} empleo${totalJobs !== 1 ? 's' : ''}`}
             </CardDescription>

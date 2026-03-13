@@ -141,6 +141,10 @@ export type EmployeeEnterpriseDetailResponse = {
   };
 };
 
+export type EnterpriseMapResponse = {
+  enterprises: EmployeeCompaniesResponse[];
+};
+
 export async function fetchEmployeeEnterpriseDetail(enterpriseId: string) {
   return apiClient.get<EmployeeEnterpriseDetailResponse>(`/employee/portal/enterprises/${enterpriseId}/`);
 }
@@ -172,4 +176,8 @@ export async function fetchEmployeeBenefits(params: { p?: number; search?: strin
 
 export async function fetchEmployeeBenefitRedemptions() {
   return apiClient.get<EmployeeBenefitRedemption[]>('/employee/benefits/redemptions/');
+}
+
+export async function fetchEnterpriseMap() {
+  return apiClient.get<EnterpriseMapResponse>('/enterprise/map/');
 }
