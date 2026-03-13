@@ -33,6 +33,9 @@ type Redemption = {
   product_name?: string;
   product_id_snapshot?: string;
   enterprise_name?: string;
+  employee_enterprise_name?: string;
+  enterprise__enterprise?: string;
+  enterprise__username?: string;
   employee_name?: string;
   employee_last_name?: string;
   employee_email?: string;
@@ -126,6 +129,14 @@ export default function EnterpriseBenefitsRedemptionsPage() {
     });
   };
 
+  const getEnterpriseLabel = (redemption: Redemption) =>
+    redemption.enterprise_name?.trim() ||
+    redemption.employee_enterprise_name?.trim() ||
+    redemption.enterprise__enterprise?.trim() ||
+    redemption.enterprise__username?.trim() ||
+    redemption.enterprise?.trim() ||
+    '-';
+
   const exportToPDF = () => {
     if (!report?.redemptions || report.redemptions.length === 0) {
       alert('No hay datos para exportar');
@@ -174,6 +185,7 @@ export default function EnterpriseBenefitsRedemptionsPage() {
             <table>
               <thead>
                 <tr>
+                  <th>Empresa</th>
                   <th>Empleado</th>
                   <th>Correo</th>
                   <th>Fecha</th>
@@ -184,6 +196,7 @@ export default function EnterpriseBenefitsRedemptionsPage() {
                   .map(
                     (r) => `
                   <tr>
+                    <td>${getEnterpriseLabel(r)}</td>
                     <td>${`${r.employee_name || ''} ${r.employee_last_name || ''}`.trim() || '-'}</td>
                     <td>${r.employee_email || '-'}</td>
                     <td>${new Date(r.redeemed_at).toLocaleString('es-ES')}</td>
@@ -396,6 +409,7 @@ export default function EnterpriseBenefitsRedemptionsPage() {
                               <table className="w-full text-sm">
                                 <thead className="border-b bg-muted/50">
                                   <tr className="text-left">
+                                    <th className="p-3 font-semibold">Empresa</th>
                                     <th className="p-3 font-semibold">Empleado</th>
                                     <th className="p-3 font-semibold">Correo</th>
                                     <th className="p-3 font-semibold">Fecha</th>
@@ -404,6 +418,7 @@ export default function EnterpriseBenefitsRedemptionsPage() {
                                 <tbody>
                                   {redemptions.map((redemption) => (
                                     <tr key={redemption.id} className="border-b hover:bg-muted/30 transition-colors">
+                                      <td className="p-3 text-muted-foreground">{getEnterpriseLabel(redemption)}</td>
                                       <td className="p-3">
                                         {`${redemption.employee_name || ''} ${redemption.employee_last_name || ''}`.trim() || '-'}
                                       </td>
