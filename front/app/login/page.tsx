@@ -56,7 +56,7 @@ function LoginPageContent() {
           {/* Background Image */}
           <div
             className="absolute inset-0 bg-contain bg-center"
-            style={{ backgroundImage: "url(/curved9.jpg)" }}
+            style={{ backgroundImage: "url(/curved9.png)" }}
           />
 
 
@@ -75,7 +75,7 @@ function LoginPageContent() {
                 className="mx-auto mb-6"
               />
               <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Bienvenido
+                ¡Bienvenido!
               </h2>
               <p className="mt-3 text-base text-muted-foreground max-w-sm mx-auto">
                 Ingresa tu email para recibir un código de verificación
@@ -92,7 +92,7 @@ function LoginPageContent() {
                 className="mx-auto mb-6"
               />
               <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Bienvenido
+                ¡Bienvenido!
               </h2>
               <p className="mt-3 text-base text-muted-foreground max-w-sm mx-auto">
                 Ingresa tu email para recibir un código de verificación

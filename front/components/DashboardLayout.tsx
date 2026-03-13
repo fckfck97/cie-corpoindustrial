@@ -62,7 +62,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </Sheet>
 
         <main className="min-w-0 flex-1 overflow-auto">
-          <div className="p-3 sm:p-4 md:p-6">
+          <div className="p-3 sm:p-4 md:p-6 h-full">
             {profileBlocked && (
               <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                 <div className="flex items-start gap-2">

@@ -372,11 +372,6 @@ class UserCreateByRoleSerializer(serializers.ModelSerializer):
         nuip = (attrs.get("nuip") or "").strip()
         if not nuip:
             errors["nuip"] = "El número de documento es obligatorio."
-        elif User.objects.filter(nuip=nuip).exists():
-            errors["nuip"] = (
-                "El número de documento ingresado pertenece a un usuario "
-                "ya registrado en el portal."
-            )
         attrs["nuip"] = nuip
 
         normalized_phone = normalize_colombian_phone(attrs.get("phone"))

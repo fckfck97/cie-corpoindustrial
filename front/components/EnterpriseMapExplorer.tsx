@@ -17,20 +17,6 @@ const parseCoordinate = (value?: string | number | null) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const getShortReverseAddress = (data: any) => {
-  const address = data?.address;
-  if (!address) {
-    return typeof data?.display_name === 'string' ? data.display_name.trim() : '';
-  }
-
-  const road = [address.road, address.house_number].filter(Boolean).join(' ');
-  const area = address.neighbourhood || address.suburb || address.city_district || address.quarter || '';
-  const city = address.city || address.town || address.village || address.county || '';
-
-  const shortAddress = [road, area, city].filter(Boolean).join(', ');
-  return shortAddress || (typeof data?.display_name === 'string' ? data.display_name.trim() : '');
-};
-
 const escapeHtmlAttribute = (value: string) =>
   value
     .replace(/&/g, '&amp;')
@@ -78,7 +64,6 @@ export function EnterpriseMapExplorer() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersLayerRef = useRef<LeafletLayerGroup | null>(null);
-  const reverseAddressCacheRef = useRef<Map<string, string>>(new Map());
 
   const [items, setItems] = useState<EmployeeCompaniesResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,35 +95,6 @@ export function EnterpriseMapExplorer() {
     [items],
   );
 
-  const fetchReverseAddress = async (lat: number, lng: number) => {
-    const key = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-    const cached = reverseAddressCacheRef.current.get(key);
-    if (cached) return cached;
-
-    try {
-      const params = new URLSearchParams({
-        lat: String(lat),
-        lon: String(lng),
-        format: 'json',
-      });
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
-        headers: {
-          'Accept-Language': 'es',
-        },
-      });
-
-      if (!response.ok) return null;
-      const data = await response.json();
-      const displayName = getShortReverseAddress(data);
-      if (!displayName) return null;
-
-      reverseAddressCacheRef.current.set(key, displayName);
-      return displayName;
-    } catch {
-      return null;
-    }
-  };
-
   useEffect(() => {
     let cancelled = false;
     const mountMap = async () => {
@@ -166,13 +122,13 @@ export function EnterpriseMapExplorer() {
 
       markersLayer.clearLayers();
 
-      const buildPopupHtml = (item: EmployeeCompaniesResponse, reverseAddress = 'Cargando...') => `
+      const buildPopupHtml = (item: EmployeeCompaniesResponse) => `
           <div style="min-width:220px;max-width:280px">
             <p style="margin:0;font-weight:700;font-size:14px;">${escapeHtmlAttribute(item.name || 'Empresa')}</p>
             <p style="margin:4px 0 0 0;font-size:12px;color:#475569;">${escapeHtmlAttribute(item.email || 'Sin correo')}</p>
             <p style="margin:6px 0 0 0;font-size:12px;"><strong>Tel:</strong> ${escapeHtmlAttribute(item.phone || 'No registrado')}</p>
             <p style="margin:4px 0 0 0;font-size:12px;"><strong>Sector:</strong> ${escapeHtmlAttribute(item.niche || 'No registrado')}</p>
-            <p style="margin:8px 0 0 0;font-size:12px;color:#0f172a;"><strong>Dirección:</strong> ${escapeHtmlAttribute(reverseAddress)}</p>
+            <p style="margin:8px 0 0 0;font-size:12px;color:#0f172a;"><strong>Dirección:</strong> ${escapeHtmlAttribute(item.address || 'No disponible')}</p>
           </div>
         `;
 
@@ -198,10 +154,6 @@ export function EnterpriseMapExplorer() {
         const marker = L.marker([lat, lng], { icon });
         marker.bindTooltip(item.name || 'Empresa');
         marker.bindPopup(buildPopupHtml(item));
-        marker.on('popupopen', async () => {
-          const reverseAddress = await fetchReverseAddress(lat, lng);
-          marker.setPopupContent(buildPopupHtml(item, reverseAddress || 'No disponible'));
-        });
         marker.on('click', () => marker.openPopup());
         marker.addTo(markersLayer);
       });
@@ -226,13 +178,13 @@ export function EnterpriseMapExplorer() {
   }, []);
 
   return (
-    <div className="h-screen w-full">
+    <div className="enterprise-map-shell relative z-0 h-full w-full">
       {loading ? (
         <div className="flex items-center justify-center h-full text-muted-foreground">Cargando mapa...</div>
       ) : error ? (
         <div className="flex items-center justify-center h-full text-red-600">{error}</div>
       ) : (
-        <div ref={mapContainerRef} className="h-full w-full bg-muted" />
+        <div ref={mapContainerRef} className="h-full w-full overflow-hidden rounded-xl bg-muted" />
       )}
     </div>
   );

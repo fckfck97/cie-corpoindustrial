@@ -36,7 +36,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
+    <header className="sticky top-0 z-[1200] border-b bg-background/80 backdrop-blur-md">
       <div className="flex h-16 items-center justify-between px-3 sm:px-4 md:px-6">
         <div className="flex items-center gap-4">
 
@@ -74,7 +74,13 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="end" className="w-56 p-2" forceMount>
+              <DropdownMenuContent
+                align="end"
+                side="bottom"
+                sideOffset={8}
+                className="z-[3000] w-56 p-2"
+                forceMount
+              >
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">{user.name}</p>

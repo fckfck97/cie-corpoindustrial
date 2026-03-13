@@ -81,7 +81,7 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
     first_name =        models.CharField(max_length=30, blank=True, default="")
     last_name =         models.CharField(max_length=30, blank=True, default="")
     document_type =     models.CharField(max_length=2, choices=DOCUMENT_TYPES, default='CC', blank=True)
-    nuip =              models.CharField(max_length=11, unique=True, blank=True, null=True)
+    nuip =              models.CharField(max_length=11, blank=True, null=True)
     phone =             models.CharField(max_length=20, blank=True, null=True)
     enterprise =        models.CharField(max_length=100, blank=True, null=True)
     
@@ -107,7 +107,7 @@ class UserProfile(models.Model):
     id =                        models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True)
     user =                      models.OneToOneField(UserAccount, on_delete=models.CASCADE)
     document_type_enterprise =  models.CharField(max_length=3, choices=DOCUMENT_TYPES_ENTERPRISES, default='NIT', blank=True, null=True)
-    nuip_enterprise =           models.CharField(max_length=11, unique=True, blank=True, null=True)
+    nuip_enterprise =           models.CharField(max_length=11, blank=True, null=True)
     rut =                       models.ImageField(upload_to=image_rut_directory_path, blank=True, null=True)
     description =               models.TextField(blank=True, null=True)
     niche =                     models.CharField(max_length=120, blank=True, null=True)

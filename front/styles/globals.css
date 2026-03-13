@@ -259,6 +259,15 @@
   list-style-type: decimal;
 }
 
+/* Map layering fixes: keep global header/dropdowns above map and hide bottom-left control bubble. */
+.enterprise-map-shell .leaflet-container {
+  z-index: 0;
+}
+
+.enterprise-map-shell .leaflet-bottom.leaflet-left .leaflet-control {
+  display: none !important;
+}
+
 .prose li {
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;

@@ -573,7 +573,7 @@ export default function AdminCreateCompanyPage() {
                     <option value="Tecnología">Tecnología</option>
                   </select>
                 </div>
-                <div className="grid gap-2">
+                <div className="grid gap-2 md:col-span-2">
                   <Label htmlFor="address">Dirección *</Label>
                   <Input
                     id="address"
