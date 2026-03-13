@@ -340,6 +340,7 @@ class EnterpriseBenefitRedemptionsReportView(APIView):
                 | Q(employee__first_name__icontains=search)
                 | Q(employee__last_name__icontains=search)
                 | Q(employee__email__icontains=search)
+                | Q(employee__enterprise__icontains=search)
                 | Q(enterprise__enterprise__icontains=search)
                 | Q(enterprise__username__icontains=search)
                 | Q(enterprise_name_snapshot__icontains=search)

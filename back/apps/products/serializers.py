@@ -151,6 +151,7 @@ class ProductRedemptionSerializer(serializers.ModelSerializer):
     employee_name = serializers.CharField(source='employee.first_name', read_only=True)
     employee_last_name = serializers.CharField(source='employee.last_name', read_only=True)
     employee_email = serializers.EmailField(source='employee.email', read_only=True)
+    employee_enterprise_name = serializers.SerializerMethodField()
     enterprise_name = serializers.SerializerMethodField()
 
     class Meta:
@@ -165,6 +166,7 @@ class ProductRedemptionSerializer(serializers.ModelSerializer):
             'employee_name',
             'employee_last_name',
             'employee_email',
+            'employee_enterprise_name',
             'enterprise',
             'enterprise_name',
             'redeemed_date',
@@ -178,6 +180,11 @@ class ProductRedemptionSerializer(serializers.ModelSerializer):
 
     def get_product_deleted(self, obj):
         return obj.product is None
+
+    def get_employee_enterprise_name(self, obj):
+        if not obj.employee:
+            return None
+        return obj.employee.enterprise or obj.employee.username
 
     def get_enterprise_name(self, obj):
         if not obj.enterprise:

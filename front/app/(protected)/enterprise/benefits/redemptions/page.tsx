@@ -32,16 +32,12 @@ type Redemption = {
   product_deleted?: boolean;
   product_name?: string;
   product_id_snapshot?: string;
-  enterprise_name?: string;
   employee_enterprise_name?: string;
-  enterprise__enterprise?: string;
-  enterprise__username?: string;
   employee_name?: string;
   employee_last_name?: string;
   employee_email?: string;
   redeemed_at: string;
   redeemed_date?: string;
-  enterprise?: string;
 };
 
 type EnterpriseReport = {
@@ -129,13 +125,7 @@ export default function EnterpriseBenefitsRedemptionsPage() {
     });
   };
 
-  const getEnterpriseLabel = (redemption: Redemption) =>
-    redemption.enterprise_name?.trim() ||
-    redemption.employee_enterprise_name?.trim() ||
-    redemption.enterprise__enterprise?.trim() ||
-    redemption.enterprise__username?.trim() ||
-    redemption.enterprise?.trim() ||
-    '-';
+  const getEnterpriseLabel = (redemption: Redemption) => redemption.employee_enterprise_name?.trim() || '-';
 
   const exportToPDF = () => {
     if (!report?.redemptions || report.redemptions.length === 0) {
