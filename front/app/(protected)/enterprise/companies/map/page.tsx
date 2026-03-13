@@ -1,7 +1,12 @@
 'use client';
 
+import { DashboardLayout } from '@/components/DashboardLayout';
 import { EnterpriseMapExplorer } from '@/components/EnterpriseMapExplorer';
 
 export default function EnterpriseCompaniesMapPage() {
-  return <EnterpriseMapExplorer />;
+  return (
+    <DashboardLayout>
+      <EnterpriseMapExplorer />
+    </DashboardLayout>
+  );
 }
